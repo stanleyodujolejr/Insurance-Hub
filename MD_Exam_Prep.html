@@ -1001,13 +1001,17 @@ var SYNC_GAP=5*60000;
 function syncKey(){return 'ihub_sync_'+COACH_STATE;}
 function syncCfg(){try{return JSON.parse(localStorage.getItem(syncKey())||'{}')||{};}catch(e){return {};}}
 function syncPut(c){try{localStorage.setItem(syncKey(),JSON.stringify(c));}catch(e){}}
+/* ===== v11 team link: ?team=<code> routes reports to that team's leader ===== */
+function teamClean(s){return String(s||'').toLowerCase().replace(/[^a-z0-9-]/g,'').slice(0,30);}
+(function(){try{var t=teamClean(new URLSearchParams(location.search).get('team'));if(t)localStorage.setItem('ihub_team',t);}catch(e){}})();
+function teamCode(){try{return teamClean(localStorage.getItem('ihub_team'));}catch(e){return '';}}
 function syncPayload(c){
   var acc=progPct(state.correct,state.total), sc={}, cc={}, eh=state.examHistory||[];
   try{sc=srsCounts();}catch(e){}
   try{cc=cardCounts();}catch(e){}
   var ds=progDomains().filter(function(d){return d.total>0;}).sort(function(a,b){return a.pct-b.pct;});
   var best=null; eh.forEach(function(x){if(best===null||x.pct>best)best=x.pct;});
-  return {name:c.name,state:COACH_STATE,sentAt:Date.now(),
+  return {name:c.name,state:COACH_STATE,team:teamCode(),sentAt:Date.now(),
     summary:{answered:state.total,accuracy:acc,answered7d:progSince(7),daysStudied:progDaysStudied(),
       lastStudied:progLastStudied(),mastered:sc.mastered||0,learning:sc.learning||0,struggling:sc.struggling||0,
       due:sc.due||0,mocks:eh.length,lastMock:eh.length?eh[eh.length-1].pct:null,bestMock:best,
@@ -1027,7 +1031,7 @@ function syncSend(force){
   c.tried=now; syncPut(c);
   fetch(IHUB_SYNC_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:body})
     .then(function(r){return r.json();})
-    .then(function(j){var d=syncCfg(); if(j&&j.ok){d.ok=Date.now();d.err='';d.sentTotal=total;d.sentExams=exams;}else{d.err=(j&&j.error)||'rejected';} syncPut(d); syncPaint();})
+    .then(function(j){var d=syncCfg(); if(j&&j.ok){d.ok=Date.now();d.err='';d.lead=j.lead||'';d.sentTotal=total;d.sentExams=exams;}else{d.err=(j&&j.error)||'rejected';} syncPut(d); syncPaint();})
     .catch(function(){var d=syncCfg(); d.err='offline'; syncPut(d); syncPaint();});
 }
 function syncBeacon(){
@@ -1063,7 +1067,7 @@ function syncPaint(){
   el.innerHTML='<div class="sync-row"><div class="sync-t">Auto-send is on for '+cEsc(c.name)+'</div>'
     +'<div style="display:flex;gap:6px"><button id="sync-now" class="sync-btn" type="button">Send now</button>'
     +'<button id="sync-off" class="sync-btn ghost" type="button">Turn off</button></div></div>'
-    +'<div class="sync-s">'+st+' Your progress goes to your team lead after each study session.</div>';
+    +'<div class="sync-s">'+st+' Your progress goes to '+(c.lead?cEsc(c.lead):'your team lead')+' after each study session.</div>';
   document.getElementById('sync-now').addEventListener('click',function(){var d=syncCfg();d.err='';syncPut(d);syncSend(true);syncPaint();});
   document.getElementById('sync-off').addEventListener('click',function(){var d=syncCfg();d.on=false;syncPut(d);syncPaint();});
 }
