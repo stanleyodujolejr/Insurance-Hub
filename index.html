@@ -354,5 +354,14 @@
   Insurance Exam Study Hub &nbsp;·&nbsp; Life &amp; Health Licensing Prep
 </footer>
 
+<script>
+/* v11 team link: remember ?team= and carry it into the two apps */
+(function(){try{
+  var t=String(new URLSearchParams(location.search).get('team')||'').toLowerCase().replace(/[^a-z0-9-]/g,'').slice(0,30);
+  if(!t)return;
+  try{localStorage.setItem('ihub_team',t);}catch(e){}
+  document.querySelectorAll('a.card').forEach(function(a){a.href=a.getAttribute('href').split('?')[0]+'?team='+t;});
+}catch(e){}})();
+</script>
 </body>
 </html>
