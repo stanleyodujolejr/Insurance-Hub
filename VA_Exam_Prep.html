@@ -277,6 +277,18 @@ body.coach-open .c-fab-x{opacity:1;transform:rotate(0)}
 .sync-btn.ghost{background:transparent;color:#2A5FA5}
 [data-theme="dark"] .sync-btn.ghost{color:#dfe4ec;border-color:#39414f}
 
+
+/* ---------- v12 team welcome card ---------- */
+.tw-back{position:fixed;inset:0;z-index:9999;background:rgba(10,14,20,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+.tw-card{width:100%;max-width:400px;border-radius:14px;padding:20px 18px 16px;background:#fff;color:#1d2430;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+[data-theme="dark"] .tw-card{background:#1b202a;color:#e6eaf0}
+.tw-t{font-size:17px;font-weight:800;margin:0 0 6px}
+.tw-s{font-size:13px;line-height:1.55;color:#5d6778;margin:0 0 12px}
+[data-theme="dark"] .tw-s{color:#9aa4b5}
+.tw-card .sync-name{width:100%;box-sizing:border-box;margin-bottom:10px}
+.tw-row{display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+.tw-fine{font-size:11.5px;color:#8d97a8;line-height:1.5;margin-top:12px}
+
 /* ---------- Exam plan + readiness ---------- */
 .plan{border-radius:11px;padding:13px 14px;margin-bottom:12px;background:rgba(127,138,153,.10)}
 .plan-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -2222,5 +2234,50 @@ window.addEventListener('error',function(ev){console.error('Unhandled:',ev.messa
   <span class="c-fab-icon c-fab-x">&#10005;</span>
   <span id="coach-fab-dot" class="c-fab-dot" hidden></span>
 </button>
+<script>
+/* v12 team welcome card: one tap to send progress to the leader whose link this came from */
+function twName(code){return /^[a-z]+$/.test(code)?code.charAt(0).toUpperCase()+code.slice(1):'';}
+function twKey(code){return 'ihub_welcome_'+COACH_STATE+'_'+code;}
+function twShow(){
+  var code=teamCode(); if(!code)return;
+  var c=syncCfg(); if(c.on)return;
+  try{if(localStorage.getItem(twKey(code)))return;}catch(e){return;}
+  if(document.getElementById('tw-back'))return;
+  var who=twName(code), lead=who||'your team lead';
+  var back=document.createElement('div'); back.id='tw-back'; back.className='tw-back';
+  back.innerHTML='<div class="tw-card" role="dialog" aria-modal="true" aria-labelledby="tw-t">'
+    +'<div class="tw-t" id="tw-t">'+(who?'Welcome to '+cEsc(who)+'\'s team':'Welcome to your team')+'</div>'
+    +'<div class="tw-s">Type your first name and your study progress goes to '+cEsc(lead)+' every week, so they can see how you are doing and help you pass.</div>'
+    +'<input id="tw-name" class="sync-name" type="text" maxlength="60" placeholder="Your first name" autocomplete="given-name" value="'+cEsc(c.name||'')+'">'
+    +'<div class="tw-row"><button id="tw-no" class="sync-btn ghost" type="button">Not now</button>'
+    +'<button id="tw-yes" class="sync-btn" type="button">Send my progress</button></div>'
+    +'<div class="tw-fine">Only your study numbers are sent: no answers and nothing else about you. You can turn this off any time in the Review tab.</div>'
+    +'</div>';
+  document.body.appendChild(back);
+  function close(){var b=document.getElementById('tw-back'); if(b)b.parentNode.removeChild(b);}
+  function no(){try{localStorage.setItem(twKey(code),'no');}catch(e){} close();}
+  function yes(){
+    var inp=document.getElementById('tw-name'), n=(inp.value||'').trim();
+    if(!n){inp.focus();return;}
+    var d=syncCfg(); d.on=true; d.name=n; d.tried=0; syncPut(d);
+    try{localStorage.setItem(twKey(code),'yes');}catch(e){}
+    syncSend(true); try{syncPaint();}catch(e){}
+    var card=back.querySelector('.tw-card');
+    card.innerHTML='<div class="tw-t">You are all set, '+cEsc(n)+'</div>'
+      +'<div class="tw-s">Your progress will go to '+cEsc(lead)+' after each study session. Happy studying!</div>'
+      +'<div class="tw-row"><button id="tw-done" class="sync-btn" type="button">Start studying</button></div>';
+    document.getElementById('tw-done').addEventListener('click',close);
+    /* focus later: the Enter that submitted would otherwise "click" this button at once */
+    setTimeout(function(){var b=document.getElementById('tw-done'); if(b)b.focus();},400);
+  }
+  document.getElementById('tw-yes').addEventListener('click',yes);
+  document.getElementById('tw-no').addEventListener('click',no);
+  document.getElementById('tw-name').addEventListener('keydown',function(e){
+    if(e.key==='Enter'){e.preventDefault();yes();} else if(e.key==='Escape'){e.preventDefault();no();}
+  });
+  setTimeout(function(){var i=document.getElementById('tw-name'); if(i)i.focus();},50);
+}
+try{twShow();}catch(e){}
+</script>
 </body>
 </html>
