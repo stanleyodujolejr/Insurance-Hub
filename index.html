@@ -51,7 +51,7 @@
   }
 
   main {
-    max-width: 860px;
+    max-width: 1080px;
     margin: 0 auto;
     padding: 48px 20px 64px;
   }
@@ -96,6 +96,7 @@
 
   .card-header.va { background: linear-gradient(135deg, #1e4d8c 0%, #2A5FA5 100%); }
   .card-header.md { background: linear-gradient(135deg, #155c3f 0%, #1B6F50 100%); }
+  .card-header.ga { background: linear-gradient(135deg, #7c2d12 0%, #9A3412 100%); }
 
   .state-tag {
     display: inline-block;
@@ -178,6 +179,7 @@
 
   .features.va li::before { color: #2A5FA5; }
   .features.md li::before { color: #1B6F50; }
+  .features.ga li::before { color: #9A3412; }
 
   .btn {
     display: block;
@@ -194,6 +196,7 @@
   .btn:hover { opacity: 0.88; }
   .btn.va { background: #2A5FA5; }
   .btn.md { background: #1B6F50; }
+  .btn.ga { background: #9A3412; }
 
   .divider {
     border: none;
@@ -325,6 +328,41 @@
       </div>
     </a>
 
+    <!-- Georgia Card -->
+    <a class="card" href="GA_Exam_Prep.html">
+      <div class="card-header ga">
+        <div class="state-tag">Georgia</div>
+        <h2>GA Exam Prep</h2>
+        <p>Practice for Pearson VUE Life (12-GA-01), Accident &amp; Sickness (12-GA-02), and the combined Life, Accident &amp; Sickness exam (12-GA-05)</p>
+      </div>
+      <div class="card-body">
+        <div class="stats">
+          <div class="stat">
+            <span class="stat-value">539</span>
+            <span class="stat-label">Practice items</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">14</span>
+            <span class="stat-label">Topics</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">135</span>
+            <span class="stat-label">Combo sim</span>
+          </div>
+        </div>
+        <ul class="features ga">
+          <li>Life only, Accident &amp; Sickness only, and the official combo exam</li>
+          <li>Outline #121102 weights, effective October 22, 2024</li>
+          <li>Full practice sim matches the sitting length and time</li>
+          <li>Every practice item is graded. Official pretest items are not hidden in this sim</li>
+          <li>Georgia laws only, separate from Maryland and Virginia</li>
+          <li>Progress stays in this browser. Team-lead sending is off for Georgia</li>
+          <li>Original Georgia items plus screened national practice. Not Pearson questions</li>
+        </ul>
+        <span class="btn ga">Start GA Exam Prep →</span>
+      </div>
+    </a>
+
   </div>
 
   <hr class="divider">
@@ -355,7 +393,7 @@
 </footer>
 
 <script>
-/* v11 team link: remember ?team= and carry it into the two apps */
+/* v11 team link: remember ?team= and carry it into each state exam */
 (function(){try{
   var t=String(new URLSearchParams(location.search).get('team')||'').toLowerCase().replace(/[^a-z0-9-]/g,'').slice(0,30);
   if(!t)return;

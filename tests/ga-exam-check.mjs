@@ -1,0 +1,218 @@
+/**
+ * Repeatable checks for the Georgia exam page. No network. No browser.
+ * Run: node tests/ga-exam-check.mjs
+ */
+import fs from 'fs';
+import vm from 'vm';
+import assert from 'assert';
+
+const root = new URL('..', import.meta.url);
+const read = (name) => fs.readFileSync(new URL(name, root), 'utf8');
+const gaHtml = read('GA_Exam_Prep.html');
+const indexHtml = read('index.html');
+const mdHtml = read('MD_Exam_Prep.html');
+const vaHtml = read('VA_Exam_Prep.html');
+
+function scriptsOf(html) {
+  return [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+}
+for (const [name, html] of [['GA', gaHtml], ['index', indexHtml]]) {
+  scriptsOf(html).forEach((src, i) => {
+    new vm.Script(src, { filename: `${name}-${i}.js` });
+  });
+}
+
+assert.equal(gaHtml.includes('script.google.com'), false);
+assert.equal(gaHtml.includes("const SK='ga_exam_v1'"), true);
+assert.equal(gaHtml.includes("var COACH_STATE='GA'"), true);
+assert.equal(gaHtml.includes('ihub_coach_apikey_GA'), true);
+assert.match(gaHtml, /ihub_coach_log_'\+COACH_STATE/);
+assert.equal(gaHtml.includes("COACH_LS_KEY='ihub_coach_apikey',"), false);
+assert.equal(gaHtml.includes('md_exam_v2'), false);
+assert.equal(gaHtml.includes('va_exam_v5'), false);
+assert.equal(gaHtml.includes("COACH_STATE='MD'"), false);
+assert.equal(gaHtml.includes("COACH_STATE='VA'"), false);
+assert.equal(gaHtml.includes('Maryland Life'), false);
+assert.equal(gaHtml.includes('Prometric'), false);
+assert.match(gaHtml, /Georgia Life, Accident & Sickness practice \(GA Exam Prep\)/);
+assert.match(gaHtml, /Life, Accident &amp; Sickness combo/);
+assert.equal(gaHtml.includes("'>Life &amp; Health</option>'"), false);
+assert.match(gaHtml, /if\(typeof GA_SYNC_OFF!=='undefined'&&GA_SYNC_OFF\)return;/);
+assert.match(indexHtml, /href="GA_Exam_Prep\.html"/);
+assert.match(indexHtml, /ihub_team/);
+assert.match(mdHtml, /const SK='md_exam_v2'/);
+assert.match(vaHtml, /const SK='va_exam_v5'/);
+assert.match(mdHtml, /var COACH_STATE='MD'/);
+assert.match(vaHtml, /var COACH_STATE='VA'/);
+
+function boot(search) {
+  let html = gaHtml.replace(
+    'boot();',
+    'globalThis.__bank=BANK; globalThis.__outline=OUTLINE_WEIGHTS.slice(); globalThis.__tracks=TRACK_DEFS; globalThis.__lh=TRACK_LH; globalThis.__groups=TOPIC_GROUPS; globalThis.__gaTopics=GA_TOPICS; globalThis.__final=function(){return finalState;}; boot();'
+  );
+  const scripts = scriptsOf(html);
+  function el() {
+    return {
+      style: {}, dataset: {}, className: '', innerHTML: '', textContent: '', value: '10', hidden: false,
+      classList: { toggle() {}, add() {}, remove() {}, contains() { return false } },
+      addEventListener() {}, appendChild(c) { return c; }, removeChild() {},
+      setAttribute() {}, getAttribute() { return ''; }, focus() {},
+      querySelector() { return el(); }, querySelectorAll() { return []; },
+      parentNode: { removeChild() {} }
+    };
+  }
+  const store = {};
+  const localStorage = {
+    getItem(k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+    setItem(k, v) { store[k] = String(v); },
+    removeItem(k) { delete store[k]; }
+  };
+  let fetches = 0;
+  const sandbox = {
+    console, localStorage, document: {
+      getElementById() { return el(); }, querySelector() { return el(); }, querySelectorAll() { return []; },
+      addEventListener() {}, createElement() { return el(); },
+      documentElement: { setAttribute() {}, getAttribute() { return null; } },
+      body: el(), readyState: 'complete'
+    },
+    navigator: { sendBeacon() { fetches += 1; throw new Error('beacon'); } },
+    location: { search },
+    fetch() { fetches += 1; throw new Error('fetch'); },
+    setTimeout() { return 0; }, clearTimeout() {}, clearInterval() {}, setInterval() { return 0; },
+    confirm() { return false; }, alert() {},
+    URLSearchParams, Blob, Date, Math, JSON, Object, Array, String, Number, RegExp,
+    parseInt, parseFloat, isNaN, encodeURIComponent, decodeURIComponent,
+    addEventListener() {}, removeEventListener() {}, scrollTo() {}
+  };
+  sandbox.window = sandbox;
+  sandbox.globalThis = sandbox;
+  vm.createContext(sandbox);
+  for (const src of scripts) vm.runInContext(src, sandbox, { filename: 'GA_Exam_Prep.html' });
+  sandbox.__fetches = () => fetches;
+  sandbox.__store = store;
+  return sandbox;
+}
+
+const page = boot('?team=qa-team');
+assert.equal(page.COACH_STATE, 'GA');
+assert.equal(page.GA_SYNC_OFF, true);
+assert.equal(page.IHUB_SYNC_URL, '');
+assert.equal(page.__bank.length, 539);
+assert.equal(page.__fetches(), 0);
+page.syncSend(true);
+page.syncBeacon();
+assert.equal(page.__fetches(), 0, 'Georgia sync must not call fetch or sendBeacon');
+
+const report = page.progReportText();
+assert.match(report, /Georgia Life, Accident & Sickness practice/);
+assert.match(report, /Team code saved on this device only \(not sent\): qa-team/);
+assert.equal(/Maryland/.test(report), false);
+
+page.save();
+assert.ok(page.__store.ga_exam_v1, 'progress key');
+assert.equal(page.__store.md_exam_v2, undefined);
+assert.equal(page.__store.va_exam_v5, undefined);
+assert.equal(page.__store.ihub_team, 'qa-team');
+for (const key of Object.keys(page.__store)) {
+  assert.equal(/md_exam|va_exam|ihub_sync_MD|ihub_sync_VA|ihub_plan_MD|ihub_plan_VA/.test(key), false, key);
+}
+
+const leak = /maryland|virginia|\bCOMAR\b|Title 38\.2|14 VAC/i;
+for (const q of page.__bank) {
+  const text = [q.question, q.explanation, ...Object.values(q.options)].join(' ');
+  assert.equal(leak.test(text), false, q.question.slice(0, 80));
+  assert.equal(q.provenance === 'reused-national-screened' || q.provenance === 'original-georgia', true);
+  assert.ok(q.options.A && q.options.B && q.options.C && q.options.D);
+  assert.ok('ABCD'.includes(q.correct));
+}
+const originals = page.__bank.filter((q) => q.provenance === 'original-georgia');
+assert.equal(originals.length, 52);
+assert.ok(originals.filter((q) => q.topic.startsWith('Georgia laws common')).length >= 27);
+assert.ok(originals.filter((q) => q.topic.startsWith('Georgia rules for life')).length >= 7);
+assert.ok(originals.filter((q) => q.topic.startsWith('Georgia rules for accident')).length >= 7);
+
+function draw(weight, length) {
+  if (!weight) return 0;
+  return Math.max(1, Math.round(length * weight));
+}
+function pool(topics) {
+  return page.__bank.filter((q) => topics.includes(q.topic)).length;
+}
+function checkTrack(def, length) {
+  let sum = 0;
+  for (const d of def.domains) {
+    sum += d.weight;
+    const n = draw(d.weight, length);
+    const have = pool(d.topics);
+    assert.ok(have >= n, `${def.label} ${d.name} draws ${n} from ${have}`);
+  }
+  assert.ok(Math.abs(sum - 1) < 1e-9, def.label + ' weights ' + sum);
+}
+checkTrack(page.__tracks.GA.life, 90);
+checkTrack(page.__tracks.GA.health, 90);
+checkTrack({ label: 'combo', domains: page.__outline }, 135);
+assert.equal(page.__tracks.GA.life.items, 90);
+assert.equal(page.__tracks.GA.life.minutes, 120);
+assert.equal(page.__tracks.GA.health.items, 90);
+assert.equal(page.__tracks.GA.health.minutes, 120);
+assert.equal(page.__lh.items, 135);
+assert.equal(page.__lh.minutes, 150);
+assert.equal(Object.keys(page.__tracks).join(), 'GA');
+assert.deepEqual(page.__gaTopics, page.__groups[2].topics.map((t) => t.label));
+assert.equal(page.__gaTopics.length, 3);
+
+page.setMode('ga');
+const laws = page.getTopics();
+assert.deepEqual(laws, page.__gaTopics);
+for (const topic of laws) assert.match(topic, /^Georgia /);
+
+page.localStorage.setItem('ihub_track_GA', 'life');
+page.trackApply();
+const lifeLaws = page.getTopics();
+assert.equal(lifeLaws.includes('Georgia rules for accident and sickness only'), false);
+assert.equal(lifeLaws.includes('Georgia rules for life insurance only'), true);
+assert.equal(lifeLaws.every((t) => t.startsWith('Georgia ')), true);
+
+page.localStorage.setItem('ihub_track_GA', 'health');
+page.trackApply();
+const healthLaws = page.getTopics();
+assert.equal(healthLaws.includes('Georgia rules for life insurance only'), false);
+assert.equal(healthLaws.includes('Georgia rules for accident and sickness only'), true);
+
+page.setMode('random');
+page.localStorage.setItem('ihub_track_GA', 'lh');
+page.trackApply();
+const mixed = page.getTopics();
+assert.ok(mixed.includes('Life: types of policies and annuities'));
+assert.ok(mixed.includes('Accident and sickness: types of policies'));
+assert.equal(mixed.includes('Georgia rules for life insurance only'), true);
+
+for (const mode of ['random', 'topic', 'weak', 'ga', 'srs', 'cards']) page.setMode(mode);
+for (const tab of ['practice', 'review', 'final']) page.switchTab(tab);
+page.generateQuestions();
+page.startFinalExam(135);
+assert.equal(page.__final().questions.length, 135);
+assert.equal(page.__final().duration, 150);
+page.startFinalExam(75);
+assert.equal(page.__final().questions.length, Math.round(135 / 2));
+page.localStorage.setItem('ihub_track_GA', 'life');
+page.trackApply();
+page.startFinalExam(135);
+assert.equal(page.__final().questions.length, 90);
+assert.equal(page.__final().duration, 120);
+page.localStorage.setItem('ihub_track_GA', 'health');
+page.trackApply();
+page.startFinalExam(75);
+assert.equal(page.__final().questions.length, 45);
+assert.equal(page.__final().duration, 60);
+
+const fresh = boot('');
+fresh.save();
+assert.notEqual(fresh.__store, page.__store);
+assert.ok(fresh.__store.ga_exam_v1);
+assert.equal(fresh.__store.md_exam_v2, undefined);
+assert.equal(fresh.__store.ihub_team, undefined);
+assert.equal(/Team code/.test(fresh.progReportText()), false);
+assert.equal(fresh.__fetches(), 0);
+
+console.log('ga-exam-check: ok', page.__bank.length, 'questions');
