@@ -32,7 +32,7 @@ function doPost(e) {
     var p = JSON.parse(e.postData.contents);
     var name = String(p.name || '').trim().slice(0, 60);
     var st = String(p.state || '');
-    if (!name || (st !== 'MD' && st !== 'VA')) return out({ ok: false, error: 'bad payload' });
+    if (!name || (st !== 'MD' && st !== 'VA' && st !== 'GA')) return out({ ok: false, error: 'bad payload' });
     var team = teamClean(p.team);
     var s = p.summary || {}, res = p.result || {};
     if (!(res.examTaken && (res.examResult === 'Passed' || res.examResult === 'Failed'))) res = {};   // only a real result counts
@@ -80,9 +80,12 @@ function tidyRows() {
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(n);
     if (!sh) return;
     var v = sh.getDataRange().getValues();
+    var iState = v.length ? v[0].map(String).indexOf('State') : -1;
     for (var i = 1; i < v.length; i++) for (var j = 0; j < v[i].length; j++) {
       if (typeof v[i][j] === 'string' && /[\r\n]/.test(v[i][j])) {
-        sh.getRange(i + 1, j + 1, 1, 1).setValues([[oneLine(v[i][j])]]); fixed++;
+        var flat = oneLine(v[i][j]);
+        if (iState >= 0 && v[i][iState] === 'GA') flat = asText(flat);
+        sh.getRange(i + 1, j + 1, 1, 1).setValues([[flat]]); fixed++;
       }
     }
     if (sh.setRowHeightsForced && v.length > 1) sh.setRowHeightsForced(2, v.length - 1, ROW_PX);
@@ -101,7 +104,24 @@ function headerOf(sh, list) {
   return h;
 }
 function rowFor(sh, rec) {
-  return headerOf(sh).map(function (k) { return rec[k] === undefined ? '' : rec[k]; });
+  var row = headerOf(sh).map(function (k) { return rec[k] === undefined ? '' : rec[k]; });
+  if (rec['State'] !== 'GA') return row;
+  return row.map(gaWrite);
+}
+/* Sheets treats a leading = + - @ tab or CR as a formula. Prefix those so the cell stays text.
+   Maryland and Virginia rows return above and are written exactly as before.
+   Georgia strings are flattened first. A value like =X, a line break, then Y becomes
+   "=X | Y", which setValues would run as a formula unless asText prefixes it. */
+function asText(v) {
+  if (v instanceof Date || typeof v === 'number') return v;
+  if (v === '' || v == null) return v === undefined ? '' : v;
+  var s = String(v);
+  if (/^[=+\-@\t\r]/.test(s)) return "'" + s;
+  return v;
+}
+function gaWrite(v) {
+  if (typeof v !== 'string') return v;
+  return asText(oneLine(v));
 }
 /* One row per person per exam date; re-sends update it instead of duplicating. */
 function upsertResult(name, st, team, res) {
@@ -112,6 +132,7 @@ function upsertResult(name, st, team, res) {
     'Readiness at exam': num(res.readinessAtExam), 'Mock avg at exam': num(res.mockAvgAtExam),
     'Answered at exam': num(res.answeredAtExam), 'Mastered at exam': num(res.masteredAtExam) };
   var row = h.map(function (k) { return rec[k] === undefined ? '' : rec[k]; });
+  if (st === 'GA') row = row.map(gaWrite);
   var vals = sh.getDataRange().getValues(), iN = h.indexOf('Name'), iS = h.indexOf('State'), iT = h.indexOf('Exam taken'), iG = h.indexOf('Team');
   for (var i = 1; i < vals.length; i++) {
     if (String(vals[i][iN]).toLowerCase() === name.toLowerCase() && vals[i][iS] === st && dayKey(vals[i][iT]) === taken &&
@@ -347,3 +368,62 @@ function fmtDate(v) {
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function num(v) { return (v === null || v === undefined || v === '') ? '' : Number(v); }
 function out(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+
+/* Removes the editor and curl test rows: Name "=Sync test", State GA, Team test.
+   Run this after the curl check. testGeorgiaRow calls it before returning. */
+function cleanupGeorgiaTestRows() {
+  var removed = 0;
+  ['Log', 'Latest', 'Results'].forEach(function (n) {
+    var sh = SpreadsheetApp.getActive().getSheetByName(n);
+    if (!sh) return;
+    var values = sh.getDataRange().getValues();
+    if (!values.length) return;
+    var headers = values[0].map(String);
+    var iN = headers.indexOf('Name'), iS = headers.indexOf('State'), iG = headers.indexOf('Team');
+    if (iN < 0 || iS < 0 || iG < 0) return;
+    for (var i = values.length - 1; i >= 1; i--) {
+      if (values[i][iN] === '=Sync test' && values[i][iS] === 'GA' && teamClean(values[i][iG]) === 'test') {
+        sh.deleteRow(i + 1);
+        removed++;
+      }
+    }
+  });
+  Logger.log('Removed ' + removed + ' Georgia test row(s) from Log, Latest, and Results.');
+  return removed;
+}
+
+/* Editor-only check. Posts one Georgia row through doPost, checks Latest, then deletes
+   that row from Log, Latest, and Results. The web app deployment is not involved. */
+function testGeorgiaRow() {
+  var removed = 0;
+  try {
+    var payload = {
+      name: '=Sync test', state: 'GA', team: 'test', sentAt: Date.now(),
+      summary: { track: 'Life 12-GA-01', answered: 1, accuracy: 100, readiness: 70, weakest: '' },
+      result: {}, report: '=X\nY'
+    };
+    var sent = doPost({ postData: { contents: JSON.stringify(payload) } });
+    var parsed = JSON.parse(sent.getContent());
+    if (!parsed.ok) throw new Error('doPost rejected the Georgia test row: ' + sent.getContent());
+    var sh = SpreadsheetApp.getActive().getSheetByName('Latest');
+    if (!sh) throw new Error('Latest tab is missing');
+    var values = sh.getDataRange().getValues();
+    var headers = values[0].map(String);
+    var iN = headers.indexOf('Name'), iS = headers.indexOf('State'), iE = headers.indexOf('Exam type'), iR = headers.indexOf('Report');
+    if (iN < 0 || iS < 0 || iR < 0) throw new Error('Latest is missing Name, State, or Report');
+    var found = 0;
+    for (var i = 1; i < values.length; i++) {
+      if (values[i][iN] === '=Sync test' && values[i][iS] === 'GA') found = i + 1;
+    }
+    if (!found) throw new Error('Georgia test row not on Latest');
+    if (sh.getRange(found, iN + 1).getFormula() !== '') throw new Error('name cell was stored as a formula');
+    if (iE >= 0 && values[found - 1][iE] !== 'Life 12-GA-01') throw new Error('exam type: ' + values[found - 1][iE]);
+    if (values[found - 1][iR] !== '=X | Y') throw new Error('report was not stored as text: ' + values[found - 1][iR]);
+    if (sh.getRange(found, iR + 1).getFormula() !== '') throw new Error('report cell was stored as a formula');
+  } finally {
+    removed = cleanupGeorgiaTestRows();
+  }
+  if (removed < 2) throw new Error('expected Log and Latest test rows to be removed, removed ' + removed);
+  if (cleanupGeorgiaTestRows() !== 0) throw new Error('Georgia test rows remained after cleanup');
+  Logger.log('Georgia test row checked and removed.');
+}

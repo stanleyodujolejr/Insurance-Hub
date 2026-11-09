@@ -97,7 +97,7 @@ Opened 2026-11-09. No review comments were posted on PR #1 at the time of this p
 
 Georgia progress uses `ga_exam_v1` plus `ihub_*_GA` keys (plan, track, today, results, sync flags, welcome, coach log). The coach API key and model on this page are `ihub_coach_apikey_GA` and `ihub_coach_model_GA`, so they do not read or write the Maryland/Virginia key. Theme and the team code (`ihub_team`) stay shared, which is how a hub link remembers `?team=`.
 
-The Google Apps Script that receives Maryland and Virginia reports is not in this repository. Georgia uses the same URL, and `GA_SYNC_LIVE` is false, so the page does not POST and does not call `sendBeacon` until that flag is changed in a follow-up. When the flag is on, the post includes `state: "GA"` and an exam code (`12-GA-01`, `12-GA-02`, or `12-GA-05`), and it is sent only after the student turns auto-send on. The proposed script file has no `doPost`; the one line to add to the existing `doPost` is in `apps-script/GA_SYNC_PROPOSED.gs` and `APPS_SCRIPT_GA_SETUP.md`. A rejected response does not block studying. No team code is hard-coded.
+The Apps Script that receives Maryland and Virginia reports is `apps-script/live/user_progress.gs`. Georgia uses the same URL, and `GA_SYNC_LIVE` is false, so the page does not POST and does not call `sendBeacon` until that flag is changed in a follow-up. When the flag is on, the post uses the same shape as Maryland and Virginia, with `state: "GA"` and `summary.track` set to `Life 12-GA-01`, `A&S 12-GA-02`, or `Combo 12-GA-05`. The live `doPost` writes that row to Log, Latest, and Results once it is redeployed with `GA` accepted. Steps are in `APPS_SCRIPT_GA_SETUP.md`. A rejected response does not block studying. No team code is hard-coded.
 
 ## Checks
 
