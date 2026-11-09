@@ -51,7 +51,7 @@ Social Security items sit in the life "other concepts" pool and in the accident-
 
 `GA_Exam_Prep.html` is built by `scripts/build_ga_exam.py`.
 
-- **original-georgia** (52 items) in `content/ga-law-questions.json`. Written for this branch. Not Pearson items. Each explanation cites a page that was opened for this branch.
+- **original-georgia** (72 items) in `content/ga-law-questions.json`. Written for this branch. Not Pearson items. Each explanation cites a page that was opened for this branch. Twenty of those items were added after the source gaps below were read.
 - **reused-national-screened** (487 items). Taken from the existing Maryland and Virginia banks only when the topic is a general life/health topic, the stem is not a duplicate, and the text does not match a state-leak screen (Maryland, Virginia, COMAR, Title 38.2, guaranty, a numbered free-look, "your state", and similar). Topic labels were remapped onto the Georgia outline. They remain practice items from this project, not official exam questions.
 
 Pearson states that its examination questions are copyrighted and are not available for distribution. None were copied.
@@ -71,14 +71,27 @@ Code text below is the 2025 Code of Georgia compilation on Justia, opened 2026-1
 
 The outline cites insurable interest as 33-24-6. In the 2025 code that was opened, § 33-24-6 is consent of the insured and § 33-24-3 is insurable interest. Practice items cite the section whose text was read.
 
-## Not used, because the text was not verified
+## Source gaps closed on the fix pass
 
-- Dollar limits of the Georgia Life and Health Insurance Guaranty Association. The outline cites Chapter 33-38 and § 33-24-7. No coverage-limit section was read, so no limit is stated.
-- Rule 120-2-16-.34 (long-term care partnership). The rules URL returned no rule text.
-- The outline's accident-and-sickness citation "Reg. 100-2-10 through 12" appears in the #121102 PDF. A search of that PDF found that string and did not find "120-2-10". Georgia insurance rules used elsewhere in the same PDF are in Department 120. No practice item teaches "100-2-10" as a real rule.
-- Chapters 33-29 and 33-30, Rules 120-2-8, 120-2-11, 120-2-16 (except that .34 did not load), and 120-2-31 were not read. Advertising and solicitation details from those rules are not in the Georgia items.
-- Commissioner penalty amounts in § 33-6-9 and the examination-of-records sections were not read.
+Opened 2026-11-09. No review comments were posted on PR #1 at the time of this pass.
+
+- **Guaranty limits.** O.C.G.A. § 33-38-7(a)(12), 2025 Code text: https://law.justia.com/codes/georgia/title-33/chapter-38/section-33-38-7/ The association's benefit is the lesser of the insurer's contractual obligation and the statutory caps. For one life: life death benefits $300,000, but not more than $100,000 net cash surrender and withdrawal; disability income $300,000; long-term care $300,000; other non-health-benefit-plan health insurance $300,000; health benefit plans $500,000; annuity present value $300,000, but not more than $250,000 net cash surrender and withdrawal. Aggregate for one life is $300,000, or $500,000 if health benefit plan benefits are included. One owner of multiple nongroup life policies, and certain unallocated annuity owners, are capped at $5 million. Subsection (b) limits this section to liquidations with a finding of insolvency on or after July 1, 2020. The association's own FAQ repeats the advertising ban and says the statute controls if the FAQ conflicts: https://www.glhiga.org/faqs.html
+- **Advertising the association.** O.C.G.A. § 33-38-21, version effective until January 1, 2027: https://law.justia.com/codes/georgia/title-33/chapter-38/section-33-38-21/ An agent may not use the association's existence to sell or solicit. After notice and hearing, the Commissioner may impose up to $1,000 per act, not more than $10,000 in the aggregate, or suspend or revoke the license. A later version is scheduled for January 1, 2027 and was not the text used here.
+- **Rule 120-2-16-.34.** Full rule text loaded from https://rules.sos.ga.gov/gac/120-2-16 Partnership policies must meet O.C.G.A. §§ 33-42-4 and 49-4-162, cover a Georgia resident, be IRC § 7702B(b) qualified, and be issued no earlier than January 1, 2007. Inflation: compound annual if the buyer is under 61; some inflation protection from 61 through 75; optional at 76 and older. Sellers need at least 8 hours initial training and 4 hours every 24 months. Form LTCP 200-A, printed in the rule, defines asset disregard as Medicaid disregard equal to benefits received and says purchase does not automatically confer Medicaid eligibility.
+- **Outline citation "Reg. 100-2-10 through 12."** That string is in the #121102 PDF. rules.sos.ga.gov publishes Subject 120-2-10 (insurance contract) and Subject 120-2-12 (accident and sickness advertising). No insurance subject 100-2-10 was found. Practice items tell the student to study 120-2-10 and 120-2-12 and not to treat 100-2-10 as a real insurance rule. https://rules.sos.ga.gov/gac/120-2-10 and https://rules.sos.ga.gov/gac/120-2-12
+- **Chapters 33-29 and 33-30.** The 2025 Official Code of Georgia Annotated supplement published under authority of the State lists Chapter 29 as Individual Accident and Sickness Insurance, §§ 33-29-1 through 33-29-22, and Chapter 30 as Group or Blanket Accident and Sickness Insurance, §§ 33-30-1 through 33-30-29: https://www.legis.ga.gov/api/document/docs/default-source/joint-features-document-library/t33-ch23-66-%28v25%29-pdf.pdf The supplement reprints amended sections, not the full unchanged text of every section. Pearson's group citation stops at 33-30-15; the official index continues through 33-30-29. Rule 120-2-10-.03 expressly applies O.C.G.A. § 33-29-6 to outpatient reimbursement on individual accident and sickness policies. Unchanged section text that the supplement does not reprint is not invented into questions.
+- **Rule 120-2-8.** https://rules.sos.ga.gov/gac/120-2-8 Open enrollment is the six months beginning when the person is both 65 or older and enrolled in Medicare Part B (120-2-8-.11). Six months of continuous creditable coverage in that window bars a preexisting-condition exclusion. A Medicare supplement that replaces one in force at least six months may not impose a new preexisting, waiting, elimination, or probationary period (120-2-8-.23).
+- **Rule 120-2-11.** https://rules.sos.ga.gov/gac/120-2-11 Life and annuity advertising must be truthful. An advertisement may not imply a governmental endorsement of the insurer unless the entity authorized that use (120-2-11-.08).
+- **Rule 120-2-16 other than .34.** The same rules page includes the long-term care standards. Alzheimer's disease may not be excluded as a mental or nervous disorder (120-2-16 limitation text). Partnership detail is in .34, above.
+- **Rule 120-2-31.** https://rules.sos.ga.gov/gac/120-2-31 A Buyer's Guide is required before solicitation. A Policy Summary is required before the initial premium unless the policy or the summary gives an unconditional refund of at least ten days. Failure to deliver them is an omission that misrepresents policy terms (120-2-31-.08).
+- **33-24-6 versus 33-24-3.** The outline's life-only line says "Insurable Interest Ref: 33-24-6." The 2025 code titles do not match that cross-reference. Section 33-24-3 is insurable interest in personal insurance: https://law.justia.com/codes/georgia/title-33/chapter-24/article-1/section-33-24-3/ Section 33-24-6 is consent of the insured, including the spouse exception: https://law.justia.com/codes/georgia/title-33/chapter-24/article-1/section-33-24-6/ Questions cite the section whose text was read. They do not teach 33-24-6 as the insurable-interest definition.
+
+## Still not used as an answer
+
+- Commissioner penalty amounts in § 33-6-9 and the examination-of-records sections in §§ 33-2-10 through 33-2-13 were not read, so no question states those amounts or procedures.
+- The full operative text of unchanged sections in Chapters 33-29 and 33-30 is not in the public 2025 supplement PDF. Those sections are not guessed.
 - Prelicensing hour splits in the handbook's license table were too compressed in text extraction to use. The items use the handbook's prose that a prelicensing course is valid for one year.
+- O.C.G.A. § 33-38-21 changes on January 1, 2027. Items use the version effective until that date.
 
 ## Storage and the report service
 

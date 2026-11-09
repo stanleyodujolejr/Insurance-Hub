@@ -97,7 +97,7 @@ const page = boot('?team=qa-team');
 assert.equal(page.COACH_STATE, 'GA');
 assert.equal(page.GA_SYNC_OFF, true);
 assert.equal(page.IHUB_SYNC_URL, '');
-assert.equal(page.__bank.length, 539);
+assert.equal(page.__bank.length, 559);
 assert.equal(page.__fetches(), 0);
 page.syncSend(true);
 page.syncBeacon();
@@ -126,7 +126,7 @@ for (const q of page.__bank) {
   assert.ok('ABCD'.includes(q.correct));
 }
 const originals = page.__bank.filter((q) => q.provenance === 'original-georgia');
-assert.equal(originals.length, 52);
+assert.equal(originals.length, 72);
 assert.ok(originals.filter((q) => q.topic.startsWith('Georgia laws common')).length >= 27);
 assert.ok(originals.filter((q) => q.topic.startsWith('Georgia rules for life')).length >= 7);
 assert.ok(originals.filter((q) => q.topic.startsWith('Georgia rules for accident')).length >= 7);
