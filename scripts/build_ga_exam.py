@@ -489,7 +489,7 @@ def main():
             "var IHUB_SYNC_URL='https://script.google.com/macros/s/AKfycbwda1rK5LLe7j1KgqQwa-SV5tbMJ5KsE0GsJT-6CDkb-JlKxOzEp0qu_kMDqbG7Y-ii/exec';\n"
             "var SYNC_GAP=5*60000;",
             "var IHUB_SYNC_URL='https://script.google.com/macros/s/AKfycbwda1rK5LLe7j1KgqQwa-SV5tbMJ5KsE0GsJT-6CDkb-JlKxOzEp0qu_kMDqbG7Y-ii/exec';\n"
-            "var GA_SYNC_LIVE=false;\n"
+            "var GA_SYNC_LIVE=true;\n"
             "var SYNC_GAP=5*60000;",
         ),
         (
@@ -676,7 +676,7 @@ def main():
             raise SystemExit("forbidden leftover " + word)
     if "GA_SYNC_OFF" in html:
         raise SystemExit("Georgia sync was turned off")
-    if "var GA_SYNC_LIVE=false" not in html:
+    if "var GA_SYNC_LIVE=true" not in html:
         raise SystemExit("Georgia sync live flag missing")
     if "function doPost" in html:
         raise SystemExit("doPost must not be in the page")
