@@ -1,16 +1,37 @@
-# Georgia progress sync — proposed Apps Script change
+# Georgia progress sync — setup order
 
-Maryland and Virginia post progress only. They do not call the report URL with GET. The script behind that URL is not in this repository, so this project cannot show whether a `state` of `GA` is stored separately from Maryland and Virginia. Do not assume the current deployment already does that.
+The page already points at the same web-app URL as Maryland and Virginia, and `GA_SYNC_LIVE` is `false`. While that flag is false, the Georgia page can show the team-lead section, but it does not POST and it does not call `sendBeacon`. The note on the page is: Team sending isn't switched on yet.
 
-`GA_Exam_Prep.html` now uses the same opt-in send as those two pages, aimed at the same web-app URL. The post includes `state: "GA"` and `exam` set to `12-GA-01` (Life), `12-GA-02` (Accident and Sickness), or `12-GA-05` (combo). `summary.track` repeats that as `Life 12-GA-01`, `A&S 12-GA-02`, or `Combo 12-GA-05`. Sending stays off until the student types a first name and turns it on. If the script rejects the post, or the response is not JSON with `ok: true`, the page records the error and studying continues. Nothing is posted during that failure.
+Merging the page is safe before this script change. Do not set `GA_SYNC_LIVE` to `true` in the same change that edits the script.
 
-## Paste and redeploy
+`apps-script/GA_SYNC_PROPOSED.gs` is a new file for the existing project. It does not contain `doPost`. Apps Script has one global scope, so a second `doPost` would replace the live one and break Maryland and Virginia.
 
-1. Open the existing Apps Script project that owns the current web-app deployment. Do not create a second web app.
-2. Open `apps-script/GA_SYNC_PROPOSED.gs` in this repo. Copy `handleGeorgia_` and `jsonOut_` into the project if those names are not already used.
-3. In the existing `doPost`, after the body is parsed, add: if `body.state === 'GA'`, return `handleGeorgia_(body)`. Leave the Maryland and Virginia path as it is.
-4. In the spreadsheet bound to that script, the first Georgia post creates a tab named `Georgia` if it is missing. You can create that tab yourself first; the header row is `sentAt`, `name`, `team`, `exam`, `track`, `answered`, `accuracy`, `readiness`, `weakest`, `report`.
-5. Deploy: Manage deployments, edit the existing web app, set the version to New version, and deploy. Keep the same URL. Execute as the script owner, and leave access as it already is for the Maryland and Virginia page.
-6. On the Georgia page, turn auto-send on with a test name. A row should appear on the Georgia tab, and the page should say it was sent. If the script is not updated yet, the page shows that it was not sent and does not block the exam.
+## Order
 
-Do not point Georgia at a new `/exec` URL unless you also change `IHUB_SYNC_URL` in `GA_Exam_Prep.html`.
+1. Add the script file and one line, then redeploy the same deployment.
+   - Open the Apps Script project that owns the current web app. Do not create a second web app.
+   - Add `apps-script/GA_SYNC_PROPOSED.gs` as a new file. Leave every existing file as it is.
+   - In the existing `doPost`, after the JSON body is parsed and before the existing Maryland and Virginia handling, add this line only:
+
+     `if (data.state === 'GA') return handleGeorgia_(data);`
+
+     Use the variable name that file already uses for the parsed body (`data` or `body`).
+   - Deploy: Manage deployments, edit the existing web app, version New version, deploy. Keep the same URL. Execute as the script owner, and leave access as it already is.
+
+2. Send one test Georgia row.
+   - In the Apps Script editor, run `testGeorgiaRow`. It calls `handleGeorgia_` with a fake payload, writes a row on the `Georgia` tab, and checks that a name starting with `=` was stored as text. Delete that test row afterward.
+   - Or, after the redeploy, POST once to the same `IHUB_SYNC_URL` already in `GA_Exam_Prep.html`:
+
+     ```bash
+     curl -sS -X POST -H 'Content-Type: text/plain;charset=utf-8' \
+       --data '{"name":"Sync test","state":"GA","team":"test","exam":"12-GA-01","sentAt":0,"summary":{"track":"Life 12-GA-01","answered":1,"accuracy":100,"readiness":70,"weakest":""},"report":"test row"}' \
+       "$IHUB_SYNC_URL"
+     ```
+
+     A working script responds with `{"ok":true,"lead":""}` and adds a row on the `Georgia` tab. Delete the test row.
+
+3. Confirm Maryland and Virginia still land on their existing tabs. Send or wait for one real or test post from each page and check that those rows did not move onto the Georgia tab.
+
+4. In a follow-up pull request, change `var GA_SYNC_LIVE=false;` to `var GA_SYNC_LIVE=true;` in `GA_Exam_Prep.html`. That is the line that allows the page to POST. Until then, turning auto-send on in the browser does not contact the script.
+
+The first Georgia post creates a tab named `Georgia` if it is missing. The header row is `sentAt`, `name`, `team`, `exam`, `track`, `answered`, `accuracy`, `readiness`, `weakest`, `report`. String cells that start with `=`, `+`, `-`, `@`, a tab, or a carriage return are prefixed with an apostrophe before they are written.

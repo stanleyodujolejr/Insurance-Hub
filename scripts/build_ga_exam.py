@@ -486,6 +486,49 @@ def main():
             "  L.push('Generated '+new Date().toLocaleDateString());",
         ),
         (
+            "var IHUB_SYNC_URL='https://script.google.com/macros/s/AKfycbwda1rK5LLe7j1KgqQwa-SV5tbMJ5KsE0GsJT-6CDkb-JlKxOzEp0qu_kMDqbG7Y-ii/exec';\n"
+            "var SYNC_GAP=5*60000;",
+            "var IHUB_SYNC_URL='https://script.google.com/macros/s/AKfycbwda1rK5LLe7j1KgqQwa-SV5tbMJ5KsE0GsJT-6CDkb-JlKxOzEp0qu_kMDqbG7Y-ii/exec';\n"
+            "var GA_SYNC_LIVE=false;\n"
+            "var SYNC_GAP=5*60000;",
+        ),
+        (
+            "function syncSend(force){\n  var c=syncCfg();\n  if(!c.on||!c.name||!IHUB_SYNC_URL)return;",
+            "function syncSend(force){\n  var c=syncCfg();\n  if(!GA_SYNC_LIVE)return;\n  if(!c.on||!c.name||!IHUB_SYNC_URL)return;",
+        ),
+        (
+            "function syncBeacon(){\n  var c=syncCfg();\n  if(!c.on||!c.name||!IHUB_SYNC_URL||!navigator.sendBeacon)return;",
+            "function syncBeacon(){\n  if(!GA_SYNC_LIVE)return;\n  var c=syncCfg();\n  if(!c.on||!c.name||!IHUB_SYNC_URL||!navigator.sendBeacon)return;",
+        ),
+        (
+            "function syncPaint(){\n  var el=document.getElementById('sync-box'); if(!el)return;\n  var c=syncCfg();",
+            "function syncPaint(){\n  var el=document.getElementById('sync-box'); if(!el)return;\n"
+            "  if(!GA_SYNC_LIVE){\n"
+            "    el.innerHTML='<div class=\"sync-t\">Auto-send to your team lead</div>'\n"
+            "      +'<div class=\"sync-s\">Team sending isn\\'t switched on yet.</div>';\n"
+            "    return;\n"
+            "  }\n"
+            "  var c=syncCfg();",
+        ),
+        (
+            "Only the numbers in this report are sent. No answers, no personal info beyond the name you type.",
+            "Your name and your progress report are sent. No answers are sent.",
+        ),
+        (
+            "Only your study numbers are sent: no answers and nothing else about you.",
+            "Your name and your progress report are sent. No answers are sent.",
+        ),
+        (
+            "if(!confirm('Remove this exam result from this device? (Your team lead\\'s Sheet keeps its copy.)'))return;",
+            "var leadCopy='';\n"
+            "    try{var sc=syncCfg(); if(GA_SYNC_LIVE&&(sc.on||sc.ok)) leadCopy=' (Your team lead\\'s Sheet keeps its copy.)';}catch(e){}\n"
+            "    if(!confirm('Remove this exam result from this device?'+leadCopy))return;",
+        ),
+        (
+            "function twShow(){\n  var code=teamCode(); if(!code)return;",
+            "function twShow(){\n  if(!GA_SYNC_LIVE)return;\n  var code=teamCode(); if(!code)return;",
+        ),
+        (
             "function teamCode(){try{return teamClean(localStorage.getItem('ihub_team'));}catch(e){return '';}}\nfunction syncPayload(c){",
             "function teamCode(){try{return teamClean(localStorage.getItem('ihub_team'));}catch(e){return '';}}\n"
             "function gaExamCode(){var id='lh'; try{id=trackId();}catch(e){} if(id==='life') return '12-GA-01'; if(id==='health') return '12-GA-02'; return '12-GA-05';}\n"
@@ -633,6 +676,10 @@ def main():
             raise SystemExit("forbidden leftover " + word)
     if "GA_SYNC_OFF" in html:
         raise SystemExit("Georgia sync was turned off")
+    if "var GA_SYNC_LIVE=false" not in html:
+        raise SystemExit("Georgia sync live flag missing")
+    if "function doPost" in html:
+        raise SystemExit("doPost must not be in the page")
     out = ROOT / "GA_Exam_Prep.html"
     out.write_text(html, encoding="utf-8")
     print(json.dumps({

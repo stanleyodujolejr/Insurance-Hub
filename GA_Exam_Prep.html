@@ -994,6 +994,7 @@ function progColor(p){return p>=70?'var(--sc-good)':p>=50?'var(--sc-warn)':'var(
    never waits on it and works fully offline without it. A rejected
    response is stored as an error and does not block studying.          */
 var IHUB_SYNC_URL='https://script.google.com/macros/s/AKfycbwda1rK5LLe7j1KgqQwa-SV5tbMJ5KsE0GsJT-6CDkb-JlKxOzEp0qu_kMDqbG7Y-ii/exec';
+var GA_SYNC_LIVE=false;
 var SYNC_GAP=5*60000;
 /* key is computed lazily: COACH_STATE is assigned later in the file than this block */
 function syncKey(){return 'ihub_sync_'+COACH_STATE;}
@@ -1032,6 +1033,7 @@ function syncPayload(c){
 }
 function syncSend(force){
   var c=syncCfg();
+  if(!GA_SYNC_LIVE)return;
   if(!c.on||!c.name||!IHUB_SYNC_URL)return;
   var now=Date.now();
   if(!force&&(c.sentTotal===state.total&&c.sentExams===(state.examHistory||[]).length))return;
@@ -1045,6 +1047,7 @@ function syncSend(force){
     .catch(function(){var d=syncCfg(); d.err='offline'; syncPut(d); syncPaint();});
 }
 function syncBeacon(){
+  if(!GA_SYNC_LIVE)return;
   var c=syncCfg();
   if(!c.on||!c.name||!IHUB_SYNC_URL||!navigator.sendBeacon)return;
   if(c.sentTotal===state.total&&c.sentExams===(state.examHistory||[]).length)return;
@@ -1059,10 +1062,15 @@ document.addEventListener('visibilitychange',function(){ if(document.visibilityS
 window.addEventListener('pagehide',syncBeacon);
 function syncPaint(){
   var el=document.getElementById('sync-box'); if(!el)return;
+  if(!GA_SYNC_LIVE){
+    el.innerHTML='<div class="sync-t">Auto-send to your team lead</div>'
+      +'<div class="sync-s">Team sending isn\'t switched on yet.</div>';
+    return;
+  }
   var c=syncCfg();
   if(!c.on){
     el.innerHTML='<div class="sync-t">Auto-send to your team lead</div>'
-      +'<div class="sync-s">Turn this on and your progress is sent to your team lead automatically, so you never have to remember to text it. Only the numbers in this report are sent. No answers, no personal info beyond the name you type.</div>'
+      +'<div class="sync-s">Turn this on and your progress is sent to your team lead automatically, so you never have to remember to text it. Your name and your progress report are sent. No answers are sent.</div>'
       +'<div class="sync-row" style="margin-top:9px"><input id="sync-name" class="sync-name" type="text" maxlength="60" placeholder="Your first name" value="'+cEsc(c.name||'')+'">'
       +'<button id="sync-on" class="sync-btn" type="button">Turn on</button></div>';
     document.getElementById('sync-on').addEventListener('click',function(){
@@ -1412,7 +1420,9 @@ document.addEventListener('click',function(e){
   }
   else if(id==='res-save'){resSave();}
   else if(id==='res-del'){
-    if(!confirm('Remove this exam result from this device? (Your team lead\'s Sheet keeps its copy.)'))return;
+    var leadCopy='';
+    try{var sc=syncCfg(); if(GA_SYNC_LIVE&&(sc.on||sc.ok)) leadCopy=' (Your team lead\'s Sheet keeps its copy.)';}catch(e){}
+    if(!confirm('Remove this exam result from this device?'+leadCopy))return;
     var a=resAll();a.pop();resPut(a);progRender();
   }
 });
@@ -2244,6 +2254,7 @@ window.addEventListener('error',function(ev){console.error('Unhandled:',ev.messa
 function twName(code){return /^[a-z]+$/.test(code)?code.charAt(0).toUpperCase()+code.slice(1):'';}
 function twKey(code){return 'ihub_welcome_'+COACH_STATE+'_'+code;}
 function twShow(){
+  if(!GA_SYNC_LIVE)return;
   var code=teamCode(); if(!code)return;
   var c=syncCfg(); if(c.on)return;
   try{if(localStorage.getItem(twKey(code)))return;}catch(e){return;}
@@ -2256,7 +2267,7 @@ function twShow(){
     +'<input id="tw-name" class="sync-name" type="text" maxlength="60" placeholder="Your first name" autocomplete="given-name" value="'+cEsc(c.name||'')+'">'
     +'<div class="tw-row"><button id="tw-no" class="sync-btn ghost" type="button">Not now</button>'
     +'<button id="tw-yes" class="sync-btn" type="button">Send my progress</button></div>'
-    +'<div class="tw-fine">Only your study numbers are sent: no answers and nothing else about you. You can turn this off any time in the Review tab.</div>'
+    +'<div class="tw-fine">Your name and your progress report are sent. No answers are sent. You can turn this off any time in the Review tab.</div>'
     +'</div>';
   document.body.appendChild(back);
   function close(){var b=document.getElementById('tw-back'); if(b)b.parentNode.removeChild(b);}
