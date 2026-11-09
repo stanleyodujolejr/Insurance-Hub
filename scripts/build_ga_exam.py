@@ -482,19 +482,24 @@ def main():
         (
             "  L.push(who);\n  L.push('Generated '+new Date().toLocaleDateString());",
             "  L.push(who);\n"
-            "  if(teamCode()) L.push('Team code saved on this device only (not sent): '+teamCode());\n"
+            "  if(teamCode()) L.push('Team code: '+teamCode());\n"
             "  L.push('Generated '+new Date().toLocaleDateString());",
         ),
         (
-            "if(!confirm('Remove this exam result from this device? (Your team lead\\'s Sheet keeps its copy.)'))return;",
-            "if(!confirm('Remove this exam result from this device? Georgia results are stored only on this device.'))return;",
+            "function teamCode(){try{return teamClean(localStorage.getItem('ihub_team'));}catch(e){return '';}}\nfunction syncPayload(c){",
+            "function teamCode(){try{return teamClean(localStorage.getItem('ihub_team'));}catch(e){return '';}}\n"
+            "function gaExamCode(){var id='lh'; try{id=trackId();}catch(e){} if(id==='life') return '12-GA-01'; if(id==='health') return '12-GA-02'; return '12-GA-05';}\n"
+            "function gaTrackTag(){var code=gaExamCode(); if(code==='12-GA-01') return 'Life 12-GA-01'; if(code==='12-GA-02') return 'A&S 12-GA-02'; return 'Combo 12-GA-05';}\n"
+            "function syncPayload(c){",
         ),
         (
-            "var IHUB_SYNC_URL='https://script.google.com/macros/s/AKfycbwda1rK5LLe7j1KgqQwa-SV5tbMJ5KsE0GsJT-6CDkb-JlKxOzEp0qu_kMDqbG7Y-ii/exec';",
-            "var IHUB_SYNC_URL='';\nvar GA_SYNC_OFF=true;",
+            "return {name:c.name,state:COACH_STATE,team:teamCode(),sentAt:Date.now(),",
+            "return {name:c.name,state:COACH_STATE,team:teamCode(),exam:gaExamCode(),sentAt:Date.now(),",
         ),
-        ("function syncSend(force){", "function syncSend(force){\n  if(typeof GA_SYNC_OFF!=='undefined'&&GA_SYNC_OFF)return;"),
-        ("function syncBeacon(){", "function syncBeacon(){\n  if(typeof GA_SYNC_OFF!=='undefined'&&GA_SYNC_OFF)return;"),
+        (
+            "coach:!!coachGetKey(),track:trackLabel(),sessions7d:todaySessions7()}",
+            "coach:!!coachGetKey(),track:gaTrackTag(),sessions7d:todaySessions7()}",
+        ),
         ("window.__finalLen=140;", "window.__finalLen=135;"),
         (
             "sel='<label class=\"today-x\">Exam <select id=\"trk-sel\" class=\"today-sel\"><option value=\"lh\"'+(t==='lh'?' selected':'')+'>Life &amp; Health</option>';",
@@ -504,10 +509,6 @@ def main():
         (
             "@media(max-width:560px){\n  .c-fab{right:12px;bottom:60px;width:52px;height:52px}",
             "@media(max-width:560px){\n  .wrap{padding-right:76px}\n  .c-fab{right:10px;bottom:78px;width:48px;height:48px}",
-        ),
-        (
-            "Your study data is stored on this device. Nothing is sent anywhere unless you copy or share it, or turn on auto-send below.",
-            "Your study data is stored on this device. Georgia progress is not sent to a team lead. You can still copy or share the report yourself.",
         ),
         (
             "doc.text('MD Exam Prep — Maryland L&H Review Export',ML,11);",
@@ -524,10 +525,6 @@ def main():
             "weak.map(t=>`<span class=\"weak-tag\">${t}</span>`)",
             "weak.map(t=>`<span class=\"weak-tag\">${fEscape(t)}</span>`)",
         ),
-        ("/* ---------- Auto-send progress ---------- */", "/* ---------- Progress stays on this device ---------- */"),
-        ("/* ================= Auto-send progress (opt-in) =================", "/* ================= Progress report (not sent) ================="),
-        ("el.innerHTML='<div class=\"sync-t\">Auto-send to your team lead</div>'", "el.innerHTML='<div class=\"sync-t\">Reports stay on this device</div>'"),
-        ("el.innerHTML='<div class=\"sync-row\"><div class=\"sync-t\">Auto-send is on for '+cEsc(c.name)+'</div>'", "el.innerHTML='<div class=\"sync-row\"><div class=\"sync-t\">Saved on this device for '+cEsc(c.name)+'</div>'"),
         (
             '"Maryland Guaranty Corporation limits"',
             '"Georgia Life and Health Insurance Guaranty Association limits"',
@@ -623,45 +620,6 @@ def main():
     if html.count(old_coach) != 1:
         raise SystemExit("coach prompt missing")
     html = html.replace(old_coach, new_coach, 1)
-    # sync panel: honest gate, no send button
-    old_paint = "function syncPaint(){\n  var el=document.getElementById('sync-box'); if(!el)return;\n  var c=syncCfg();"
-    new_paint = """function syncPaint(){
-  var el=document.getElementById('sync-box'); if(!el)return;
-  if(typeof GA_SYNC_OFF!=='undefined'&&GA_SYNC_OFF){
-    var team=teamCode();
-    el.innerHTML='<div class="sync-t">Reports stay on this device</div>'
-      +'<div class="sync-s">Georgia progress is saved in this browser. Sending a report to a team lead is off until the report service is updated for Georgia. This page does not transmit progress.</div>'
-      +(team?'<div class="sync-s">Team code <b>'+cEsc(team)+'</b> from your link is stored only in this browser. It is not sent.</div>':'');
-    return;
-  }
-  var c=syncCfg();"""
-    if html.count(old_paint) != 1:
-        raise SystemExit("syncPaint anchor missing")
-    html = html.replace(old_paint, new_paint, 1)
-    old_tw = "function twShow(){"
-    new_tw = """function twShow(){
-  if(typeof GA_SYNC_OFF!=='undefined'&&GA_SYNC_OFF){
-    var code=teamCode(); if(!code)return;
-    try{if(localStorage.getItem(twKey(code)))return;}catch(e){return;}
-    if(document.getElementById('tw-back'))return;
-    var back=document.createElement('div'); back.id='tw-back'; back.className='tw-back';
-    back.innerHTML='<div class="tw-card" role="dialog" aria-modal="true" aria-labelledby="tw-t">'
-      +'<div class="tw-t" id="tw-t">Team link saved on this device</div>'
-      +'<div class="tw-s">Code <b>'+cEsc(code)+'</b> stays in this browser. Georgia progress is not sent to a team lead.</div>'
-      +'<div class="tw-row"><button id="tw-yes" class="sync-btn" type="button">OK</button></div></div>';
-    document.body.appendChild(back);
-    document.getElementById('tw-yes').addEventListener('click',function(){
-      try{localStorage.setItem(twKey(code),'seen');}catch(e){}
-      var b=document.getElementById('tw-back'); if(b)b.parentNode.removeChild(b);
-    });
-    return;
-  }
-"""
-    # The original function starts with function twShow(){ — replacing the token leaves the rest of the original body,
-    # which would still run after the GA branch returns. The early return handles GA_SYNC_OFF. Good.
-    if html.count(old_tw) != 1:
-        raise SystemExit("twShow count")
-    html = html.replace(old_tw, new_tw, 1)
     # Carry team back to the hub after teamCode exists.
     html = html.replace(
         "try{twShow();}catch(e){}",
@@ -673,8 +631,8 @@ def main():
     for word in forbidden:
         if word in html:
             raise SystemExit("forbidden leftover " + word)
-    if "script.google.com" in html:
-        raise SystemExit("sync host still present")
+    if "GA_SYNC_OFF" in html:
+        raise SystemExit("Georgia sync was turned off")
     out = ROOT / "GA_Exam_Prep.html"
     out.write_text(html, encoding="utf-8")
     print(json.dumps({

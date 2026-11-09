@@ -22,7 +22,7 @@ for (const [name, html] of [['GA', gaHtml], ['index', indexHtml]]) {
   });
 }
 
-assert.equal(gaHtml.includes('script.google.com'), false);
+assert.equal(gaHtml.includes('script.google.com'), true);
 assert.equal(gaHtml.includes("const SK='ga_exam_v1'"), true);
 assert.equal(gaHtml.includes("var COACH_STATE='GA'"), true);
 assert.equal(gaHtml.includes('ihub_coach_apikey_GA'), true);
@@ -37,7 +37,9 @@ assert.equal(gaHtml.includes('Prometric'), false);
 assert.match(gaHtml, /Georgia Life, Accident & Sickness practice \(GA Exam Prep\)/);
 assert.match(gaHtml, /Life, Accident &amp; Sickness combo/);
 assert.equal(gaHtml.includes("'>Life &amp; Health</option>'"), false);
-assert.match(gaHtml, /if\(typeof GA_SYNC_OFF!=='undefined'&&GA_SYNC_OFF\)return;/);
+assert.equal(gaHtml.includes('GA_SYNC_OFF'), false);
+const mdSyncUrl = mdHtml.match(/var IHUB_SYNC_URL='([^']+)'/)[1];
+assert.equal(gaHtml.includes(mdSyncUrl), true);
 assert.match(indexHtml, /href="GA_Exam_Prep\.html"/);
 assert.match(indexHtml, /ihub_team/);
 assert.match(mdHtml, /const SK='md_exam_v2'/);
@@ -97,17 +99,48 @@ function boot(search) {
 
 const page = boot('?team=qa-team');
 assert.equal(page.COACH_STATE, 'GA');
-assert.equal(page.GA_SYNC_OFF, true);
-assert.equal(page.IHUB_SYNC_URL, '');
+assert.equal(page.GA_SYNC_OFF, undefined);
+assert.equal(page.IHUB_SYNC_URL, mdSyncUrl);
 assert.equal(page.__bank.length, 559);
 assert.equal(page.__fetches(), 0);
 page.syncSend(true);
 page.syncBeacon();
-assert.equal(page.__fetches(), 0, 'Georgia sync must not call fetch or sendBeacon');
+assert.equal(page.__fetches(), 0, 'Georgia sync must not post before opt-in');
+
+let posted = null;
+page.fetch = function (url, opts) {
+  posted = { url, body: opts.body };
+  return Promise.resolve({ json() { return Promise.resolve({ ok: true, lead: 'Lead' }); } });
+};
+page.syncPut({ on: true, name: 'Ada', tried: 0 });
+page.localStorage.setItem('ihub_track_GA', 'life');
+page.trackApply();
+page.syncSend(true);
+assert.equal(posted.url, mdSyncUrl);
+let payload = JSON.parse(posted.body);
+assert.equal(payload.state, 'GA');
+assert.equal(payload.exam, '12-GA-01');
+assert.equal(payload.summary.track, 'Life 12-GA-01');
+page.localStorage.setItem('ihub_track_GA', 'health');
+page.trackApply();
+page.syncSend(true);
+payload = JSON.parse(posted.body);
+assert.equal(payload.exam, '12-GA-02');
+assert.equal(payload.summary.track, 'A&S 12-GA-02');
+page.localStorage.setItem('ihub_track_GA', 'lh');
+page.trackApply();
+page.syncSend(true);
+payload = JSON.parse(posted.body);
+assert.equal(payload.exam, '12-GA-05');
+assert.equal(payload.summary.track, 'Combo 12-GA-05');
+posted = null;
+page.syncPut({ on: false, name: 'Ada' });
+page.syncSend(true);
+assert.equal(posted, null);
 
 const report = page.progReportText();
 assert.match(report, /Georgia Life, Accident & Sickness practice/);
-assert.match(report, /Team code saved on this device only \(not sent\): qa-team/);
+assert.match(report, /Team code: qa-team/);
 assert.equal(/Maryland/.test(report), false);
 
 page.save();
