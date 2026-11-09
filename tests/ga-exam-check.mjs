@@ -22,7 +22,7 @@ for (const [name, html] of [['GA', gaHtml], ['index', indexHtml]]) {
   });
 }
 
-assert.equal(gaHtml.includes('script.google.com'), false);
+assert.equal(gaHtml.includes('script.google.com'), true);
 assert.equal(gaHtml.includes("const SK='ga_exam_v1'"), true);
 assert.equal(gaHtml.includes("var COACH_STATE='GA'"), true);
 assert.equal(gaHtml.includes('ihub_coach_apikey_GA'), true);
@@ -37,7 +37,13 @@ assert.equal(gaHtml.includes('Prometric'), false);
 assert.match(gaHtml, /Georgia Life, Accident & Sickness practice \(GA Exam Prep\)/);
 assert.match(gaHtml, /Life, Accident &amp; Sickness combo/);
 assert.equal(gaHtml.includes("'>Life &amp; Health</option>'"), false);
-assert.match(gaHtml, /if\(typeof GA_SYNC_OFF!=='undefined'&&GA_SYNC_OFF\)return;/);
+assert.equal(gaHtml.includes('GA_SYNC_OFF'), false);
+assert.match(gaHtml, /var GA_SYNC_LIVE=false;/);
+assert.equal(gaHtml.includes('Only the numbers in this report are sent'), false);
+assert.match(gaHtml, /Your name and your progress report are sent/);
+assert.match(gaHtml, /Team sending isn\\'t switched on yet/);
+const mdSyncUrl = mdHtml.match(/var IHUB_SYNC_URL='([^']+)'/)[1];
+assert.equal(gaHtml.includes(mdSyncUrl), true);
 assert.match(indexHtml, /href="GA_Exam_Prep\.html"/);
 assert.match(indexHtml, /ihub_team/);
 assert.match(mdHtml, /const SK='md_exam_v2'/);
@@ -97,17 +103,59 @@ function boot(search) {
 
 const page = boot('?team=qa-team');
 assert.equal(page.COACH_STATE, 'GA');
-assert.equal(page.GA_SYNC_OFF, true);
-assert.equal(page.IHUB_SYNC_URL, '');
+assert.equal(page.GA_SYNC_OFF, undefined);
+assert.equal(page.GA_SYNC_LIVE, false);
+assert.equal(page.IHUB_SYNC_URL, mdSyncUrl);
 assert.equal(page.__bank.length, 559);
 assert.equal(page.__fetches(), 0);
+page.syncPut({ on: true, name: 'Ada', tried: 0 });
 page.syncSend(true);
 page.syncBeacon();
-assert.equal(page.__fetches(), 0, 'Georgia sync must not call fetch or sendBeacon');
+assert.equal(page.__fetches(), 0, 'Georgia sync must not post while GA_SYNC_LIVE is false');
+page.syncPaint();
+assert.match(page.document.getElementById('sync-box').innerHTML, /Team sending isn't switched on yet/);
+
+let posted = null;
+let beacons = 0;
+page.fetch = function (url, opts) {
+  posted = { url, body: opts.body };
+  return Promise.resolve({ json() { return Promise.resolve({ ok: true, lead: 'Lead' }); } });
+};
+page.navigator.sendBeacon = function () { beacons += 1; return true; };
+page.GA_SYNC_LIVE = true;
+page.localStorage.setItem('ihub_track_GA', 'life');
+page.trackApply();
+page.syncSend(true);
+assert.equal(posted.url, mdSyncUrl);
+let payload = JSON.parse(posted.body);
+assert.equal(payload.state, 'GA');
+assert.equal(payload.exam, '12-GA-01');
+assert.equal(payload.summary.track, 'Life 12-GA-01');
+page.localStorage.setItem('ihub_track_GA', 'health');
+page.trackApply();
+page.syncSend(true);
+payload = JSON.parse(posted.body);
+assert.equal(payload.exam, '12-GA-02');
+assert.equal(payload.summary.track, 'A&S 12-GA-02');
+page.localStorage.setItem('ihub_track_GA', 'lh');
+page.trackApply();
+page.syncSend(true);
+payload = JSON.parse(posted.body);
+assert.equal(payload.exam, '12-GA-05');
+assert.equal(payload.summary.track, 'Combo 12-GA-05');
+page.syncBeacon();
+assert.equal(beacons, 1);
+posted = null;
+beacons = 0;
+page.GA_SYNC_LIVE = false;
+page.syncSend(true);
+page.syncBeacon();
+assert.equal(posted, null);
+assert.equal(beacons, 0);
 
 const report = page.progReportText();
 assert.match(report, /Georgia Life, Accident & Sickness practice/);
-assert.match(report, /Team code saved on this device only \(not sent\): qa-team/);
+assert.match(report, /Team code: qa-team/);
 assert.equal(/Maryland/.test(report), false);
 
 page.save();
@@ -302,5 +350,39 @@ assert.equal(comboLabels.full, 'Full practice sim (135 q &middot; 150 min)');
 assert.equal(comboLabels.half, 'Shorter practice (68 q &middot; 76 min)');
 labelsFor('life');
 assert.equal(page.document.getElementById('final-150').innerHTML, lifeLabels.full);
+
+const gs = read('apps-script/live/user_progress.gs');
+const clasp = JSON.parse(read('apps-script/live/.clasp.json'));
+assert.equal(clasp.scriptId, '1lmwo8X8yWRHlt3xlIQVq_pfODLmXAktrmhGusopHLvcerdJGPLI7N3bk');
+assert.equal(clasp.rootDir, '.');
+assert.match(gs, /st !== 'MD' && st !== 'VA' && st !== 'GA'/);
+assert.match(gs, /if \(rec\['State'\] !== 'GA'\) return row;/);
+assert.match(gs, /return row\.map\(gaWrite\);/);
+assert.match(gs, /if \(st === 'GA'\) row = row\.map\(gaWrite\);/);
+assert.match(gs, /if \(iState >= 0 && v\[i\]\[iState\] === 'GA'\) flat = asText\(flat\);/);
+assert.match(gs, /function cleanupGeorgiaTestRows/);
+assert.match(gs, /removed = cleanupGeorgiaTestRows\(\)/);
+assert.match(gs, /values\[i\]\[iN\] === '=Sync test'/);
+assert.match(gs, /getFormula\(\) !== ''/);
+assert.equal(gs.includes("insertSheet('Georgia')"), false);
+assert.equal(gs.includes('function handleGeorgia_'), false);
+assert.equal(gs.includes('GA_SYNC_PROPOSED'), false);
+const cellFn = gs.slice(gs.indexOf('function oneLine'), gs.indexOf('function tidyRows'))
+  + gs.slice(gs.indexOf('function asText'), gs.indexOf('/* One row per person per exam date'));
+const cellBox = { String, Object, Date };
+vm.runInNewContext(cellFn + '\nthis.asText=asText; this.gaWrite=gaWrite; this.oneLine=oneLine;', cellBox);
+assert.equal(cellBox.asText('=cmd'), "'=cmd");
+assert.equal(cellBox.asText('+1'), "'+1");
+assert.equal(cellBox.asText('-1'), "'-1");
+assert.equal(cellBox.asText('@sum'), "'@sum");
+assert.equal(cellBox.asText('\t1'), "'\t1");
+assert.equal(cellBox.asText('\r1'), "'\r1");
+assert.equal(cellBox.asText('Ada'), 'Ada');
+assert.equal(cellBox.asText(3), 3);
+assert.equal(cellBox.asText(''), '');
+assert.equal(cellBox.gaWrite('=X\nY'), "'=X | Y");
+assert.equal(cellBox.gaWrite('Ada\nBee'), 'Ada | Bee');
+assert.equal(cellBox.gaWrite(3), 3);
+assert.equal(cellBox.oneLine('=X\nY'), '=X | Y');
 
 console.log('ga-exam-check: ok', page.__bank.length, 'questions');

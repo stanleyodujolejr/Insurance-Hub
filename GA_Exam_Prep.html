@@ -266,7 +266,7 @@ body.coach-open .c-fab-x{opacity:1;transform:rotate(0)}
 .fc-kbd{font-size:11px;color:#8d97a8;text-align:center;margin-top:10px}
 @media(max-width:560px){.fc-kbd{display:none}}
 
-/* ---------- Progress stays on this device ---------- */
+/* ---------- Auto-send progress ---------- */
 .sync-box{margin-top:14px;padding:12px 13px;border-radius:10px;background:rgba(127,138,153,.10)}
 .sync-row{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
 .sync-t{font-size:13px;font-weight:700}
@@ -404,7 +404,7 @@ body.coach-open .c-fab-x{opacity:1;transform:rotate(0)}
         <button id="prog-copy" type="button" class="prog-btn prog-btn-p">&#128203; Copy report</button>
         <button id="prog-share" type="button" class="prog-btn">&#128228; Share</button>
       </div>
-      <div class="prog-note">Your study data is stored on this device. Georgia progress is not sent to a team lead. You can still copy or share the report yourself.</div>
+      <div class="prog-note">Your study data is stored on this device. Nothing is sent anywhere unless you copy or share it, or turn on auto-send below.</div>
       <div id="sync-box" class="sync-box"></div>
     </div>
     <div class="review-stats-bar">
@@ -988,12 +988,13 @@ function progCls(p){return p===null?'':(p>=70?'prog-good':p>=50?'prog-warn':'pro
 function progColor(p){return p>=70?'var(--sc-good)':p>=50?'var(--sc-warn)':'var(--sc-bad)';}
 
 
-/* ================= Progress report (not sent) =================
+/* ================= Auto-send progress (opt-in) =================
    Sends a small snapshot to the team lead's Google Sheet. Off until the
    student turns it on and types their name. Fire-and-forget; the app
-   never waits on it and works fully offline without it.               */
-var IHUB_SYNC_URL='';
-var GA_SYNC_OFF=true;
+   never waits on it and works fully offline without it. A rejected
+   response is stored as an error and does not block studying.          */
+var IHUB_SYNC_URL='https://script.google.com/macros/s/AKfycbwda1rK5LLe7j1KgqQwa-SV5tbMJ5KsE0GsJT-6CDkb-JlKxOzEp0qu_kMDqbG7Y-ii/exec';
+var GA_SYNC_LIVE=false;
 var SYNC_GAP=5*60000;
 /* key is computed lazily: COACH_STATE is assigned later in the file than this block */
 function syncKey(){return 'ihub_sync_'+COACH_STATE;}
@@ -1003,24 +1004,36 @@ function syncPut(c){try{localStorage.setItem(syncKey(),JSON.stringify(c));}catch
 function teamClean(s){return String(s||'').toLowerCase().replace(/[^a-z0-9-]/g,'').slice(0,30);}
 (function(){try{var t=teamClean(new URLSearchParams(location.search).get('team'));if(t)localStorage.setItem('ihub_team',t);}catch(e){}})();
 function teamCode(){try{return teamClean(localStorage.getItem('ihub_team'));}catch(e){return '';}}
+function gaExamCode(){
+  var id='lh'; try{id=trackId();}catch(e){}
+  if(id==='life') return '12-GA-01';
+  if(id==='health') return '12-GA-02';
+  return '12-GA-05';
+}
+function gaTrackTag(){
+  var code=gaExamCode();
+  if(code==='12-GA-01') return 'Life 12-GA-01';
+  if(code==='12-GA-02') return 'A&S 12-GA-02';
+  return 'Combo 12-GA-05';
+}
 function syncPayload(c){
   var acc=progPct(state.correct,state.total), sc={}, cc={}, eh=state.examHistory||[];
   try{sc=srsCounts();}catch(e){}
   try{cc=cardCounts();}catch(e){}
   var ds=progDomains().filter(function(d){return d.total>0;}).sort(function(a,b){return a.pct-b.pct;});
   var best=null; eh.forEach(function(x){if(best===null||x.pct>best)best=x.pct;});
-  return {name:c.name,state:COACH_STATE,team:teamCode(),sentAt:Date.now(),
+  return {name:c.name,state:COACH_STATE,team:teamCode(),exam:gaExamCode(),sentAt:Date.now(),
     summary:{answered:state.total,accuracy:acc,answered7d:progSince(7),daysStudied:progDaysStudied(),
       lastStudied:progLastStudied(),mastered:sc.mastered||0,learning:sc.learning||0,struggling:sc.struggling||0,
       due:sc.due||0,mocks:eh.length,lastMock:eh.length?eh[eh.length-1].pct:null,bestMock:best,
       weakest:ds.length?ds[0].name+' ('+ds[0].pct+'%)':'',cardsMastered:cc.mastered||0,
-      examDate:planGet().date||'',daysLeft:planDaysLeft(),readiness:(readiness()||{}).score,perDay:(planPace()||{}).perDay,coach:!!coachGetKey(),track:trackLabel(),sessions7d:todaySessions7()},
+      examDate:planGet().date||'',daysLeft:planDaysLeft(),readiness:(readiness()||{}).score,perDay:(planPace()||{}).perDay,coach:!!coachGetKey(),track:gaTrackTag(),sessions7d:todaySessions7()},
     result:resSummary(),
     report:progReportText()};
 }
 function syncSend(force){
-  if(typeof GA_SYNC_OFF!=='undefined'&&GA_SYNC_OFF)return;
   var c=syncCfg();
+  if(!GA_SYNC_LIVE)return;
   if(!c.on||!c.name||!IHUB_SYNC_URL)return;
   var now=Date.now();
   if(!force&&(c.sentTotal===state.total&&c.sentExams===(state.examHistory||[]).length))return;
@@ -1034,7 +1047,7 @@ function syncSend(force){
     .catch(function(){var d=syncCfg(); d.err='offline'; syncPut(d); syncPaint();});
 }
 function syncBeacon(){
-  if(typeof GA_SYNC_OFF!=='undefined'&&GA_SYNC_OFF)return;
+  if(!GA_SYNC_LIVE)return;
   var c=syncCfg();
   if(!c.on||!c.name||!IHUB_SYNC_URL||!navigator.sendBeacon)return;
   if(c.sentTotal===state.total&&c.sentExams===(state.examHistory||[]).length)return;
@@ -1049,17 +1062,15 @@ document.addEventListener('visibilitychange',function(){ if(document.visibilityS
 window.addEventListener('pagehide',syncBeacon);
 function syncPaint(){
   var el=document.getElementById('sync-box'); if(!el)return;
-  if(typeof GA_SYNC_OFF!=='undefined'&&GA_SYNC_OFF){
-    var team=teamCode();
-    el.innerHTML='<div class="sync-t">Reports stay on this device</div>'
-      +'<div class="sync-s">Georgia progress is saved in this browser. Sending a report to a team lead is off until the report service is updated for Georgia. This page does not transmit progress.</div>'
-      +(team?'<div class="sync-s">Team code <b>'+cEsc(team)+'</b> from your link is stored only in this browser. It is not sent.</div>':'');
+  if(!GA_SYNC_LIVE){
+    el.innerHTML='<div class="sync-t">Auto-send to your team lead</div>'
+      +'<div class="sync-s">Team sending isn\'t switched on yet.</div>';
     return;
   }
   var c=syncCfg();
   if(!c.on){
-    el.innerHTML='<div class="sync-t">Reports stay on this device</div>'
-      +'<div class="sync-s">Turn this on and your progress is sent to your team lead automatically, so you never have to remember to text it. Only the numbers in this report are sent. No answers, no personal info beyond the name you type.</div>'
+    el.innerHTML='<div class="sync-t">Auto-send to your team lead</div>'
+      +'<div class="sync-s">Turn this on and your progress is sent to your team lead automatically, so you never have to remember to text it. Your name and your progress report are sent. No answers are sent.</div>'
       +'<div class="sync-row" style="margin-top:9px"><input id="sync-name" class="sync-name" type="text" maxlength="60" placeholder="Your first name" value="'+cEsc(c.name||'')+'">'
       +'<button id="sync-on" class="sync-btn" type="button">Turn on</button></div>';
     document.getElementById('sync-on').addEventListener('click',function(){
@@ -1071,7 +1082,7 @@ function syncPaint(){
   }
   var st=c.err?'<span class="sync-err">Not sent yet ('+cEsc(c.err)+'). It will retry next time you study.</span>'
     :c.ok?'<span class="sync-ok">Last sent '+progAgo(c.ok)+'.</span>':'Sending...';
-  el.innerHTML='<div class="sync-row"><div class="sync-t">Saved on this device for '+cEsc(c.name)+'</div>'
+  el.innerHTML='<div class="sync-row"><div class="sync-t">Auto-send is on for '+cEsc(c.name)+'</div>'
     +'<div style="display:flex;gap:6px"><button id="sync-now" class="sync-btn" type="button">Send now</button>'
     +'<button id="sync-off" class="sync-btn ghost" type="button">Turn off</button></div></div>'
     +'<div class="sync-s">'+st+' Your progress goes to '+(c.lead?cEsc(c.lead):'your team lead')+' after each study session.</div>';
@@ -1409,7 +1420,9 @@ document.addEventListener('click',function(e){
   }
   else if(id==='res-save'){resSave();}
   else if(id==='res-del'){
-    if(!confirm('Remove this exam result from this device? Georgia results are stored only on this device.'))return;
+    var leadCopy='';
+    try{var sc=syncCfg(); if(GA_SYNC_LIVE&&(sc.on||sc.ok)) leadCopy=' (Your team lead\'s Sheet keeps its copy.)';}catch(e){}
+    if(!confirm('Remove this exam result from this device?'+leadCopy))return;
     var a=resAll();a.pop();resPut(a);progRender();
   }
 });
@@ -1425,7 +1438,7 @@ function progReportText(){
   var L=[];
   L.push('EXAM PREP - PROGRESS REPORT');
   L.push(who);
-  if(teamCode()) L.push('Team code saved on this device only (not sent): '+teamCode());
+  if(teamCode()) L.push('Team code: '+teamCode());
   L.push('Generated '+new Date().toLocaleDateString());
   L.push('');
   L.push('OVERALL');
@@ -2241,23 +2254,7 @@ window.addEventListener('error',function(ev){console.error('Unhandled:',ev.messa
 function twName(code){return /^[a-z]+$/.test(code)?code.charAt(0).toUpperCase()+code.slice(1):'';}
 function twKey(code){return 'ihub_welcome_'+COACH_STATE+'_'+code;}
 function twShow(){
-  if(typeof GA_SYNC_OFF!=='undefined'&&GA_SYNC_OFF){
-    var code=teamCode(); if(!code)return;
-    try{if(localStorage.getItem(twKey(code)))return;}catch(e){return;}
-    if(document.getElementById('tw-back'))return;
-    var back=document.createElement('div'); back.id='tw-back'; back.className='tw-back';
-    back.innerHTML='<div class="tw-card" role="dialog" aria-modal="true" aria-labelledby="tw-t">'
-      +'<div class="tw-t" id="tw-t">Team link saved on this device</div>'
-      +'<div class="tw-s">Code <b>'+cEsc(code)+'</b> stays in this browser. Georgia progress is not sent to a team lead.</div>'
-      +'<div class="tw-row"><button id="tw-yes" class="sync-btn" type="button">OK</button></div></div>';
-    document.body.appendChild(back);
-    document.getElementById('tw-yes').addEventListener('click',function(){
-      try{localStorage.setItem(twKey(code),'seen');}catch(e){}
-      var b=document.getElementById('tw-back'); if(b)b.parentNode.removeChild(b);
-    });
-    return;
-  }
-
+  if(!GA_SYNC_LIVE)return;
   var code=teamCode(); if(!code)return;
   var c=syncCfg(); if(c.on)return;
   try{if(localStorage.getItem(twKey(code)))return;}catch(e){return;}
@@ -2270,7 +2267,7 @@ function twShow(){
     +'<input id="tw-name" class="sync-name" type="text" maxlength="60" placeholder="Your first name" autocomplete="given-name" value="'+cEsc(c.name||'')+'">'
     +'<div class="tw-row"><button id="tw-no" class="sync-btn ghost" type="button">Not now</button>'
     +'<button id="tw-yes" class="sync-btn" type="button">Send my progress</button></div>'
-    +'<div class="tw-fine">Only your study numbers are sent: no answers and nothing else about you. You can turn this off any time in the Review tab.</div>'
+    +'<div class="tw-fine">Your name and your progress report are sent. No answers are sent. You can turn this off any time in the Review tab.</div>'
     +'</div>';
   document.body.appendChild(back);
   function close(){var b=document.getElementById('tw-back'); if(b)b.parentNode.removeChild(b);}
