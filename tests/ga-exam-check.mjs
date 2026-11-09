@@ -48,12 +48,13 @@ assert.match(vaHtml, /var COACH_STATE='VA'/);
 function boot(search) {
   let html = gaHtml.replace(
     'boot();',
-    'globalThis.__bank=BANK; globalThis.__outline=OUTLINE_WEIGHTS.slice(); globalThis.__tracks=TRACK_DEFS; globalThis.__lh=TRACK_LH; globalThis.__groups=TOPIC_GROUPS; globalThis.__gaTopics=GA_TOPICS; globalThis.__final=function(){return finalState;}; boot();'
+    'globalThis.__bank=BANK; globalThis.__outline=OUTLINE_WEIGHTS.slice(); globalThis.__tracks=TRACK_DEFS; globalThis.__lh=TRACK_LH; globalThis.__groups=TOPIC_GROUPS; globalThis.__gaTopics=GA_TOPICS; globalThis.__final=function(){return finalState;}; globalThis.__state=function(){return state;}; boot();'
   );
   const scripts = scriptsOf(html);
-  function el() {
+  function el(id) {
     return {
-      style: {}, dataset: {}, className: '', innerHTML: '', textContent: '', value: '10', hidden: false,
+      style: {}, dataset: {}, className: '', innerHTML: '', textContent: '',
+      value: (id === 'rev-topic' || id === 'rev-result') ? '' : '10', hidden: false,
       classList: { toggle() {}, add() {}, remove() {}, contains() { return false } },
       addEventListener() {}, appendChild(c) { return c; }, removeChild() {},
       setAttribute() {}, getAttribute() { return ''; }, focus() {},
@@ -68,9 +69,10 @@ function boot(search) {
     removeItem(k) { delete store[k]; }
   };
   let fetches = 0;
+  const els = {};
   const sandbox = {
     console, localStorage, document: {
-      getElementById() { return el(); }, querySelector() { return el(); }, querySelectorAll() { return []; },
+      getElementById(id) { if (!els[id]) els[id] = el(id); return els[id]; }, querySelector() { return el(); }, querySelectorAll() { return []; },
       addEventListener() {}, createElement() { return el(); },
       documentElement: { setAttribute() {}, getAttribute() { return null; } },
       body: el(), readyState: 'complete'
@@ -214,5 +216,51 @@ assert.equal(fresh.__store.md_exam_v2, undefined);
 assert.equal(fresh.__store.ihub_team, undefined);
 assert.equal(/Team code/.test(fresh.progReportText()), false);
 assert.equal(fresh.__fetches(), 0);
+
+function assertSitting(label, track, startLen, expectLen) {
+  page.localStorage.setItem('ihub_track_GA', track);
+  page.trackApply();
+  page.startFinalExam(startLen);
+  const qs = page.__final().questions;
+  assert.equal(qs.length, expectLen, label + ' length');
+  const seen = {};
+  qs.forEach((q) => {
+    assert.notEqual(q._dn, 'Mixed', label + ' mixed');
+    assert.ok(q._dn, label + ' category');
+    assert.equal(seen[q.question], undefined, label + ' duplicate');
+    seen[q.question] = 1;
+  });
+}
+assertSitting('life', 'life', 90, 90);
+assertSitting('health', 'health', 90, 90);
+assertSitting('combo', 'lh', 135, 135);
+
+page.localStorage.setItem('ihub_track_GA', 'life');
+page.trackApply();
+page.__state().reviewHistory.push({
+  topic: 'Georgia laws common to life and accident and sickness',
+  question: 'Sample <b>question</b>',
+  options: { A: 'a', B: 'b', C: 'c', D: 'd' },
+  correct: 'A', userAnswer: 'A', isCorrect: true, explanation: 'because'
+});
+const pdfText = [];
+let pdfName = '';
+page.jspdf = { jsPDF: function () {
+  return {
+    internal: { getNumberOfPages() { return 1; } },
+    setFontSize() {}, setFont() {}, setTextColor() {}, setFillColor() {}, setDrawColor() {},
+    rect() {}, line() {}, addPage() {}, setPage() {},
+    splitTextToSize(s) { return [String(s)]; },
+    text(s) { pdfText.push(String(s)); },
+    save(name) { pdfName = name; }
+  };
+}};
+page.exportPDF();
+assert.equal(pdfName, 'GA_Exam_Prep_Review.pdf');
+assert.match(pdfText[0], /GA Exam Prep — Life only/);
+assert.equal(/Maryland/.test(pdfText.join(' ')), false);
+
+page.renderReview();
+assert.match(page.document.getElementById('review-container').innerHTML, /&lt;b&gt;/);
 
 console.log('ga-exam-check: ok', page.__bank.length, 'questions');

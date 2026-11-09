@@ -373,7 +373,83 @@ def main():
             "sel='<label class=\"today-x\">Exam <select id=\"trk-sel\" class=\"today-sel\"><option value=\"lh\"'+(t==='lh'?' selected':'')+'>Life, Accident &amp; Sickness combo</option>';",
         ),
         ("bind('#final-start',function(){startFinalExam(window.__finalLen||140);});", "bind('#final-start',function(){startFinalExam(window.__finalLen||135);});"),
+        (
+            "@media(max-width:560px){\n  .c-fab{right:12px;bottom:60px;width:52px;height:52px}",
+            "@media(max-width:560px){\n  .wrap{padding-right:76px}\n  .c-fab{right:10px;bottom:78px;width:48px;height:48px}",
+        ),
+        (
+            "Your study data is stored on this device. Nothing is sent anywhere unless you copy or share it, or turn on auto-send below.",
+            "Your study data is stored on this device. Georgia progress is not sent to a team lead. You can still copy or share the report yourself.",
+        ),
+        (
+            "doc.text('MD Exam Prep — Maryland L&H Review Export',ML,11);",
+            "var pdfTrack=''; try{pdfTrack=trackLabel();}catch(e){}\n  doc.text('GA Exam Prep — '+pdfTrack,ML,11);",
+        ),
+        ("doc.save('MD_Exam_Prep_Review.pdf');", "doc.save('GA_Exam_Prep_Review.pdf');"),
+        ("name:q._dn||'Mixed'", "name:q._dn||q.topic"),
+        (
+            '"Maryland Guaranty Corporation limits"',
+            '"Georgia Life and Health Insurance Guaranty Association limits"',
+        ),
+        (
+            'Must exist at the time of APPLICATION for life insurance — NOT at the time of death. You automatically have it in your own life, and in a spouse, dependent, business partner, or key employee. (Property insurance is the opposite: interest must exist at time of loss.)',
+            "O.C.G.A. § 33-24-3(h): an insurable interest must exist when the personal-insurance contract becomes effective, and need not exist when the loss occurs. Subsection (a) is a reasonable expectation of pecuniary advantage through the continued life, health, or bodily safety of another, or a substantial interest from love and affection for individuals closely related by blood or by law. Subsection (b): a person has an unlimited insurable interest in that person's own life, health, and bodily safety and may name any beneficiary.",
+        ),
     ]
+    repls.append((
+        """function pickFinalExamQuestions(length){
+  const picks=[];
+  OUTLINE_WEIGHTS.forEach(d=>{
+    if(!d.weight)return;
+    const n=Math.max(1,Math.round(length*d.weight));
+    const pool=shuffle(BANK.filter(q=>d.topics.indexOf(q.topic)>=0));
+    if(!pool.length)return;
+    for(let i=0;i<n;i++){const q=pool[i%pool.length];picks.push(Object.assign({},q,{_dk:d.key,_dn:d.name}));}
+  });
+  while(picks.length<length){const q=BANK[Math.floor(Math.random()*BANK.length)];picks.push(Object.assign({},q,{_dk:'?',_dn:'Mixed'}));}
+  return shuffle(picks).slice(0,length);
+}""",
+        """function pickFinalExamQuestions(length){
+  var domains=OUTLINE_WEIGHTS.filter(function(d){
+    return d.weight>0 && BANK.some(function(q){return d.topics.indexOf(q.topic)>=0;});
+  });
+  var parts=domains.map(function(d){return {d:d, exact:length*d.weight, n:Math.floor(length*d.weight)};});
+  var left=length-parts.reduce(function(s,p){return s+p.n;},0);
+  parts.sort(function(a,b){return (b.exact-b.n)-(a.exact-a.n);});
+  var i=0;
+  while(left>0 && parts.length){parts[i%parts.length].n++; left--; i++;}
+  var seen={}, picks=[];
+  parts.forEach(function(p){
+    var pool=shuffle(BANK.filter(function(q){return p.d.topics.indexOf(q.topic)>=0 && !seen[q.question];}));
+    var take=Math.min(p.n, pool.length);
+    for(var j=0;j<take;j++){
+      seen[pool[j].question]=1;
+      picks.push(Object.assign({}, pool[j], {_dk:p.d.key, _dn:p.d.name}));
+    }
+  });
+  if(picks.length<length){
+    var rest=shuffle(BANK.filter(function(q){
+      return !seen[q.question] && parts.some(function(p){return p.d.topics.indexOf(q.topic)>=0;});
+    }));
+    for(var r=0;r<rest.length && picks.length<length;r++){
+      var q=rest[r], dom=null;
+      for(var u=0;u<parts.length;u++){if(parts[u].d.topics.indexOf(q.topic)>=0){dom=parts[u].d;break;}}
+      seen[q.question]=1;
+      picks.push(Object.assign({}, q, {_dk:dom.key, _dn:dom.name}));
+    }
+  }
+  return shuffle(picks).slice(0,length);
+}""",
+    ))
+    repls.append((
+        "con.innerHTML=items.map(r=>`<div class=\"review-card ${r.isCorrect?'rc-c':'rc-w'}\"><div class=\"review-topic\">${r.topic} &middot; ${r.isCorrect?'&#10003; Correct':'&#10007; Incorrect'}</div><div class=\"review-qtext\">${r.question}</div><div class=\"review-opts\">${['A','B','C','D'].map(l=>`<div class=\"review-opt ${l===r.correct?'ro-c':(l===r.userAnswer&&!r.isCorrect?'ro-w':'')}\"><span style=\"font-weight:700;min-width:16px;flex-shrink:0\">${l}</span><span>${(r.options||{})[l]||''}</span></div>`).join('')}</div><div class=\"review-expl\"><strong>Explanation:</strong> ${r.explanation}</div></div>`).join('');",
+        "con.innerHTML=items.map(function(r){\n"
+        "    return '<div class=\"review-card '+(r.isCorrect?'rc-c':'rc-w')+'\"><div class=\"review-topic\">'+fEscape(r.topic)+' &middot; '+(r.isCorrect?'&#10003; Correct':'&#10007; Incorrect')+'</div><div class=\"review-qtext\">'+fEscape(r.question)+'</div><div class=\"review-opts\">'+['A','B','C','D'].map(function(l){\n"
+        "      var cls=l===r.correct?'ro-c':(l===r.userAnswer&&!r.isCorrect?'ro-w':'');\n"
+        "      return '<div class=\"review-opt '+cls+'\"><span style=\"font-weight:700;min-width:16px;flex-shrink:0\">'+l+'</span><span>'+fEscape((r.options||{})[l]||'')+'</span></div>';\n"
+        "    }).join('')+'</div><div class=\"review-expl\"><strong>Explanation:</strong> '+fEscape(r.explanation||'')+'</div></div>';\n"
+        "  }).join('');",
+    ))
     for old, new in repls:
         count = html.count(old)
         if count < 1:

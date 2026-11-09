@@ -153,7 +153,8 @@ body.coach-open .c-fab-x{opacity:1;transform:rotate(0)}
 .c-widget .c-status{background:rgba(255,255,255,.22);color:#fff}
 .c-widget .c-on{background:rgba(255,255,255,.30);color:#fff}
 @media(max-width:560px){
-  .c-fab{right:12px;bottom:60px;width:52px;height:52px}
+  .wrap{padding-right:76px}
+  .c-fab{right:10px;bottom:78px;width:48px;height:48px}
   body.coach-open .c-fab{display:none}
   .c-widget{right:8px;left:8px;bottom:8px;width:auto;max-width:none;height:min(88vh,calc(100vh - 16px));border-radius:14px}
   .c-backdrop:not([hidden]){display:block}
@@ -403,7 +404,7 @@ body.coach-open .c-fab-x{opacity:1;transform:rotate(0)}
         <button id="prog-copy" type="button" class="prog-btn prog-btn-p">&#128203; Copy report</button>
         <button id="prog-share" type="button" class="prog-btn">&#128228; Share</button>
       </div>
-      <div class="prog-note">Your study data is stored on this device. Nothing is sent anywhere unless you copy or share it, or turn on auto-send below.</div>
+      <div class="prog-note">Your study data is stored on this device. Georgia progress is not sent to a team lead. You can still copy or share the report yourself.</div>
       <div id="sync-box" class="sync-box"></div>
     </div>
     <div class="review-stats-bar">
@@ -694,15 +695,34 @@ function switchTab(tab){
 // =============== FINAL EXAM MODE ===============
 let finalState={length:140,duration:150,questions:[],answers:{},startTime:0,timerId:null,submitted:false};
 function pickFinalExamQuestions(length){
-  const picks=[];
-  OUTLINE_WEIGHTS.forEach(d=>{
-    if(!d.weight)return;
-    const n=Math.max(1,Math.round(length*d.weight));
-    const pool=shuffle(BANK.filter(q=>d.topics.indexOf(q.topic)>=0));
-    if(!pool.length)return;
-    for(let i=0;i<n;i++){const q=pool[i%pool.length];picks.push(Object.assign({},q,{_dk:d.key,_dn:d.name}));}
+  var domains=OUTLINE_WEIGHTS.filter(function(d){
+    return d.weight>0 && BANK.some(function(q){return d.topics.indexOf(q.topic)>=0;});
   });
-  while(picks.length<length){const q=BANK[Math.floor(Math.random()*BANK.length)];picks.push(Object.assign({},q,{_dk:'?',_dn:'Mixed'}));}
+  var parts=domains.map(function(d){return {d:d, exact:length*d.weight, n:Math.floor(length*d.weight)};});
+  var left=length-parts.reduce(function(s,p){return s+p.n;},0);
+  parts.sort(function(a,b){return (b.exact-b.n)-(a.exact-a.n);});
+  var i=0;
+  while(left>0 && parts.length){parts[i%parts.length].n++; left--; i++;}
+  var seen={}, picks=[];
+  parts.forEach(function(p){
+    var pool=shuffle(BANK.filter(function(q){return p.d.topics.indexOf(q.topic)>=0 && !seen[q.question];}));
+    var take=Math.min(p.n, pool.length);
+    for(var j=0;j<take;j++){
+      seen[pool[j].question]=1;
+      picks.push(Object.assign({}, pool[j], {_dk:p.d.key, _dn:p.d.name}));
+    }
+  });
+  if(picks.length<length){
+    var rest=shuffle(BANK.filter(function(q){
+      return !seen[q.question] && parts.some(function(p){return p.d.topics.indexOf(q.topic)>=0;});
+    }));
+    for(var r=0;r<rest.length && picks.length<length;r++){
+      var q=rest[r], dom=null;
+      for(var u=0;u<parts.length;u++){if(parts[u].d.topics.indexOf(q.topic)>=0){dom=parts[u].d;break;}}
+      seen[q.question]=1;
+      picks.push(Object.assign({}, q, {_dk:dom.key, _dn:dom.name}));
+    }
+  }
   return shuffle(picks).slice(0,length);
 }
 function startFinalExam(length){
@@ -764,7 +784,7 @@ function submitFinalExam(){
     const picked=finalState.answers[i],isC=picked===q.correct;try{if(picked)srsRecord(q,isC);}catch(e){}
     total++;if(isC)correct++;
     const dk=q._dk||'?';
-    if(!domainScore[dk])domainScore[dk]={n:0,c:0,name:q._dn||'Mixed'};
+    if(!domainScore[dk])domainScore[dk]={n:0,c:0,name:q._dn||q.topic};
     domainScore[dk].n++;if(isC)domainScore[dk].c++;
   });
   const pct=total>0?Math.round(correct/total*100):0;
@@ -1559,7 +1579,12 @@ function renderReview(){
   document.getElementById('rev-total').textContent=n;document.getElementById('rev-correct').textContent=nc;document.getElementById('rev-pct').textContent=n>0?Math.round(nc/n*100)+'%':'—';
   const con=document.getElementById('review-container');
   if(!items.length){con.innerHTML='<div class="review-empty">No answered questions yet.<br>Complete practice questions to build your review list.</div>';return;}
-  con.innerHTML=items.map(r=>`<div class="review-card ${r.isCorrect?'rc-c':'rc-w'}"><div class="review-topic">${r.topic} &middot; ${r.isCorrect?'&#10003; Correct':'&#10007; Incorrect'}</div><div class="review-qtext">${r.question}</div><div class="review-opts">${['A','B','C','D'].map(l=>`<div class="review-opt ${l===r.correct?'ro-c':(l===r.userAnswer&&!r.isCorrect?'ro-w':'')}"><span style="font-weight:700;min-width:16px;flex-shrink:0">${l}</span><span>${(r.options||{})[l]||''}</span></div>`).join('')}</div><div class="review-expl"><strong>Explanation:</strong> ${r.explanation}</div></div>`).join('');
+  con.innerHTML=items.map(function(r){
+    return '<div class="review-card '+(r.isCorrect?'rc-c':'rc-w')+'"><div class="review-topic">'+fEscape(r.topic)+' &middot; '+(r.isCorrect?'&#10003; Correct':'&#10007; Incorrect')+'</div><div class="review-qtext">'+fEscape(r.question)+'</div><div class="review-opts">'+['A','B','C','D'].map(function(l){
+      var cls=l===r.correct?'ro-c':(l===r.userAnswer&&!r.isCorrect?'ro-w':'');
+      return '<div class="review-opt '+cls+'"><span style="font-weight:700;min-width:16px;flex-shrink:0">'+l+'</span><span>'+fEscape((r.options||{})[l]||'')+'</span></div>';
+    }).join('')+'</div><div class="review-expl"><strong>Explanation:</strong> '+fEscape(r.explanation||'')+'</div></div>';
+  }).join('');
 }
 function clearAll(){if(!confirm('Clear all progress and review history? This cannot be undone.'))return;state={mode:'random',selectedTopic:null,total:0,correct:0,streak:0,topicScores:{},reviewHistory:[],seenIds:{},examHistory:[],srs:{},cards:{}};initPools();save();updateStats();document.getElementById('questions-container').innerHTML='';renderReview();}
 
@@ -1576,7 +1601,8 @@ function exportPDF(){
   function txt(s,x,fw,fs,rgb,mw){doc.setFontSize(fs);doc.setFont('helvetica',fw||'normal');if(rgb)doc.setTextColor(...rgb);const ls=doc.splitTextToSize(String(s),mw||CW);chk(ls.length*LH+2);doc.text(ls,x,y);y+=ls.length*LH;}
   // Header band
   doc.setFillColor(42,95,165);doc.rect(0,0,PW,28,'F');
-  doc.setFontSize(15);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);doc.text('MD Exam Prep — Maryland L&H Review Export',ML,11);
+  doc.setFontSize(15);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);var pdfTrack=''; try{pdfTrack=trackLabel();}catch(e){}
+  doc.text('GA Exam Prep — '+pdfTrack,ML,11);
   doc.setFontSize(9);doc.setFont('helvetica','normal');
   const nc=items.filter(r=>r.isCorrect).length;
   doc.text(`Generated: ${new Date().toLocaleDateString()}   Questions: ${items.length}   Correct: ${nc}   Score: ${Math.round(nc/items.length*100)}%`,ML,21);
@@ -1605,7 +1631,7 @@ function exportPDF(){
   });
   const tp=doc.internal.getNumberOfPages();
   for(let p=1;p<=tp;p++){doc.setPage(p);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(160,160,160);doc.text(`Page ${p} of ${tp}`,PW/2,277,{align:'center'});}
-  doc.save('MD_Exam_Prep_Review.pdf');
+  doc.save('GA_Exam_Prep_Review.pdf');
 }
 
 function boot(){try{initPools();load();buildTopics();updateStats();setMode('random');}catch(e){console.error('Bootstrap error:',e);try{localStorage.removeItem(SK);}catch(_){}initPools();state={mode:'random',selectedTopic:null,total:0,correct:0,streak:0,topicScores:{},reviewHistory:[],seenIds:{},examHistory:[],srs:{},cards:{}};buildTopics();updateStats();setMode('random');}}
@@ -1614,7 +1640,7 @@ function boot(){try{initPools();load();buildTopics();updateStats();setMode('rand
 /* Study Coach glossary: [term, "alias|alias", definition] */
 var COACH_G=[
 /* ---- GENERAL & REGULATION ---- */
-["Insurable interest","insurable interest","Must exist at the time of APPLICATION for life insurance — NOT at the time of death. You automatically have it in your own life, and in a spouse, dependent, business partner, or key employee. (Property insurance is the opposite: interest must exist at time of loss.)"],
+["Insurable interest","insurable interest","O.C.G.A. § 33-24-3(h): an insurable interest must exist when the personal-insurance contract becomes effective, and need not exist when the loss occurs. Subsection (a) is a reasonable expectation of pecuniary advantage through the continued life, health, or bodily safety of another, or a substantial interest from love and affection for individuals closely related by blood or by law. Subsection (b): a person has an unlimited insurable interest in that person's own life, health, and bodily safety and may name any beneficiary."],
 ["Indemnity","principle of indemnity|indemnify","Restores the insured to the same financial position as before the loss — no profit from insurance. Health/medical expense insurance is indemnity-based; life insurance is a valued (stated-amount) contract instead."],
 ["Adverse selection","adverse selection|antiselection","The tendency of higher-than-average risks to seek insurance more aggressively than standard risks. Underwriting, participation requirements, and waiting periods exist to control it."],
 ["Law of large numbers","law of large numbers","The more similar exposure units an insurer covers, the more closely actual losses match predicted losses. This is what makes rate-making possible."],
@@ -2061,7 +2087,7 @@ function coachSend(text){
     coachRender();coachSaveLog();
   }
 }
-var COACH_CHIPS=["What is a MEC?","Elimination period vs probationary period","COBRA vs conversion","Own occupation vs any occupation","Medigap open enrollment rules","Maryland Guaranty Corporation limits","Explain nonforfeiture options","Which 1035 exchanges are allowed?"];
+var COACH_CHIPS=["What is a MEC?","Elimination period vs probationary period","COBRA vs conversion","Own occupation vs any occupation","Medigap open enrollment rules","Georgia Life and Health Insurance Guaranty Association limits","Explain nonforfeiture options","Which 1035 exchanges are allowed?"];
 function coachRenderChips(){
   var el=document.getElementById('coach-chips'); if(!el)return;
   el.innerHTML=COACH_CHIPS.map(function(c){return '<button type="button" class="c-chip">'+cEsc(c)+'</button>';}).join('');
