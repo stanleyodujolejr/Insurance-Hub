@@ -89,7 +89,8 @@ function testGeorgiaRow() {
   if (!sheet) throw new Error('Georgia tab was not created');
   var last = sheet.getLastRow();
   var row = sheet.getRange(last, 1, 1, 10).getValues()[0];
-  if (row[1] !== "'=Sync test") throw new Error('name was not stored as text: ' + row[1]);
+  if (row[1] !== '=Sync test') throw new Error('name was not stored as text: ' + row[1]);
+  if (sheet.getRange(last, 2).getFormula() !== '') throw new Error('name cell was stored as a formula');
   if (row[3] !== '12-GA-01') throw new Error('exam column: ' + row[3]);
   if (row[4] !== 'Life 12-GA-01') throw new Error('track column: ' + row[4]);
   Logger.log('Georgia test row is on row ' + last + '. Delete it after you check the tab.');
