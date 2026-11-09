@@ -263,4 +263,20 @@ assert.equal(/Maryland/.test(pdfText.join(' ')), false);
 page.renderReview();
 assert.match(page.document.getElementById('review-container').innerHTML, /&lt;b&gt;/);
 
+for (const q of page.__bank) {
+  assert.ok('ABCD'.includes(q.correct), q.question.slice(0, 40));
+  const texts = ['A', 'B', 'C', 'D'].map((k) => q.options[k]);
+  assert.equal(new Set(texts).size, 4, q.question.slice(0, 60));
+}
+const deductible = page.__bank.find((q) => q.question.startsWith('A health plan has a $1,500 individual deductible'));
+assert.equal(deductible.correct, 'C');
+assert.equal(deductible.options.C, '$3,200');
+const keyPerson = page.__bank.find((q) => q.question.includes('pays the business if an owner or partner'));
+assert.equal(keyPerson.correct, 'A');
+assert.match(keyPerson.options.A, /Key person disability/);
+const chapter30 = page.__bank.find((q) => q.question.includes('end of Chapter 33-30'));
+assert.equal(chapter30.correct, 'A');
+assert.match(chapter30.options.A, /33-30-28 and 33-30-29 have no enacted text/);
+assert.equal(page.__bank.length, 559);
+
 console.log('ga-exam-check: ok', page.__bank.length, 'questions');

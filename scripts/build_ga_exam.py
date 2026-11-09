@@ -141,8 +141,136 @@ def screened():
                 "explanation": q["explanation"],
                 "provenance": "reused-national-screened",
             }
-            out.append(item)
+            out.append(fix_screened(item))
     return out
+
+
+def fix_screened(q):
+    """Correct screened national items the reviewer flagged. Match on the stem."""
+    stem = q["question"]
+    if stem.startswith("Which life insurance policy is designed to be 'paid up'"):
+        q["question"] = (
+            "Which traditional life policy is designed to endow at age 100, so that if the insured is still living the cash value equals the face amount?"
+        )
+        q["options"] = {
+            "A": "Term insurance that expires at age 65",
+            "B": "Limited-payment whole life that is paid up at age 65 but does not endow at 65",
+            "C": "Ordinary whole life that endows at age 100",
+            "D": "Return of premium term",
+        }
+        q["correct"] = "C"
+        q["explanation"] = (
+            "Ordinary whole life is the continuous-premium policy traditionally set to mature at age 100, when the cash value equals the face amount and the insurer pays the living insured. Limited-payment whole life can be paid up at 65, which only means premiums stop; the policy does not endow at 65. Term that expires at 65 and return-of-premium term do not endow at 100. This is product design, not a Georgia statute."
+        )
+    elif stem.startswith("Under current law, required minimum distributions (RMDs) from Traditional IRAs"):
+        q["question"] = (
+            "A Traditional IRA owner born in 1954 must take the first required minimum distribution by April 1 of the year after reaching:"
+        )
+        q["correct"] = "D"
+        q["explanation"] = (
+            "The IRS retirement-topics page states that the required beginning date for an IRA is April 1 of the year following the year the owner reaches age 73. SECURE 2.0 Act section 107 (Division T of Public Law 117-328) sets that applicable age at 73 for an individual who attains age 72 after December 31, 2022, and age 73 before January 1, 2033. Someone born in 1954 reaches 73 in 2027. The same section sets age 75 for an individual who attains age 74 after December 31, 2032, so 73 is not the only age in the statute. Missing an RMD can bring a 25 percent excise tax, reduced to 10 percent if corrected in time (IRS RMD page)."
+        )
+    elif stem.startswith("Under the ACA, what is the maximum out-of-pocket limit"):
+        q["options"]["D"] = "$8,700"
+        q["correct"] = "C"
+        q["explanation"] = (
+            "The 2024 HHS Notice of Benefit and Payment Parameters set the ACA in-network out-of-pocket maximum for self-only coverage at $9,450. Only one choice states that individual figure. Plans cannot require the enrollee to pay more than that amount in in-network deductibles, copayments, and coinsurance for the year."
+        )
+    elif stem.startswith("A health plan has a $1,500 individual deductible"):
+        q["options"]["C"] = "$3,200"
+        q["correct"] = "C"
+        q["explanation"] = (
+            "The member pays the $1,500 deductible first. Coinsurance applies to the remaining $8,500. Twenty percent of $8,500 is $1,700. $1,500 plus $1,700 is $3,200. That total is under the $6,000 out-of-pocket maximum, so the member pays $3,200, not $3,000 and not the full $6,000 cap."
+        )
+    elif stem.startswith("Which type of policy would a business purchase to replace the income"):
+        q["question"] = (
+            "A business wants a policy that it owns and that pays the business if an owner or partner who is essential to the firm becomes disabled. Which policy is that?"
+        )
+        q["correct"] = "A"
+        q["explanation"] = (
+            "Key-person disability income insurance is purchased by the business. The business is the owner and beneficiary, and the benefit covers the financial loss of a key person's services. It does not pay the disabled owner's personal living expenses. Business overhead expense insurance pays fixed operating costs such as rent and utilities. The overhead item in this bank states that overhead coverage does not replace the owner's personal income. Group long-term disability and workers' compensation are different coverages."
+        )
+    elif stem.startswith("Which Medicare cost-sharing feature requires a beneficiary to pay for the first 20 days"):
+        q["explanation"] = (
+            "For a qualifying skilled nursing facility stay after a 3-day inpatient hospital stay, Medicare Part A pays covered services in full for days 1-20. CMS's 2026 fact sheet sets the daily coinsurance for skilled nursing days 21-100 at $217. After day 100, Medicare pays nothing for that stay. The 2024 daily amount was $204; this item uses the 2026 figure."
+        )
+    elif stem.startswith("The 'donut hole'"):
+        q["question"] = "For 2026, which statement about the old Medicare Part D coverage gap (the 'donut hole') is accurate?"
+        q["options"] = {
+            "A": "The gap still requires the beneficiary to pay all drug costs after a set amount, with no annual cap",
+            "B": "The coverage gap was eliminated starting in 2025, and the 2026 annual out-of-pocket cap for covered Part D drugs is $2,100",
+            "C": "The gap is a break in hospital coverage between Part A and Part B",
+            "D": "Medigap plans sold after 2020 must leave a $5,000 drug gap",
+        }
+        q["correct"] = "B"
+        q["explanation"] = (
+            "CMS's final 2026 Part D redesign instructions set the annual out-of-pocket threshold at $2,100, which is the 2025 cap of $2,000 adjusted for the increase in Part D drug spending. After that threshold, the enrollee pays no cost sharing for covered Part D drugs. The old coverage gap is not a separate phase in which the beneficiary pays most of the cost."
+        )
+    elif stem.startswith("A Flexible Spending Account (FSA) differs"):
+        q["explanation"] = (
+            "A health FSA is generally use-it-or-lose-it unless the employer adopts a carryover or a grace period. IRS Revenue Procedure 2025-32 sets the 2026 salary-reduction limit for a health FSA at $3,400. If the plan allows a carryover, the maximum carried from a 2026 plan year into 2027 is $680. An HSA rolls over indefinitely and is owned by the employee. An FSA does not require a high-deductible health plan; an HSA does."
+        )
+    elif stem.startswith("Under SECURE 2.0, Required Minimum Distributions"):
+        q["question"] = (
+            "Under SECURE 2.0, an individual who attains age 72 after December 31, 2022, and attains age 73 before January 1, 2033, must begin required minimum distributions at age:"
+        )
+        q["correct"] = "C"
+        q["explanation"] = (
+            "SECURE 2.0 Act section 107 sets the applicable age at 73 for that individual. The same section sets age 75 for an individual who attains age 74 after December 31, 2032, so 75 is a real later age and is not the answer for this person. The IRS retirement-topics page describes the current required beginning date as April 1 of the year after the owner reaches 73. Roth IRAs have no lifetime RMD for the owner."
+        )
+    elif stem.startswith("For 2026, the 401(k) employee salary deferral"):
+        q["options"]["C"] = "$24,500"
+        q["correct"] = "C"
+        q["explanation"] = (
+            "IRS news release IR-2025-111 (November 13, 2025) and the IRS cost-of-living table set the 2026 elective deferral limit for a 401(k) at $24,500. The age-50 catch-up is $8,000, so someone 50 or older can generally defer $32,500. The defined-contribution annual-additions limit under section 415(c) is $72,000. Employees who turn 60, 61, 62, or 63 in 2026 have a higher catch-up of $11,250 instead of $8,000. The question asks for the regular deferral limit, which is $24,500."
+        )
+    elif stem.startswith("A SIMPLE IRA is designed for"):
+        q["options"]["B"] = (
+            "An employer with 100 or fewer employees who earned at least $5,000 from that employer in the prior year"
+        )
+        q["correct"] = "B"
+        q["explanation"] = (
+            "IRC section 408(p) defines a SIMPLE plan for an employer that had no more than 100 employees who received at least $5,000 of compensation from the employer in the prior year. The $5,000 is compensation the employees earned from the employer. It is not money the employer received from the employees. The employer must make either a matching contribution or a nonelective contribution."
+        )
+    elif stem.startswith("Required Minimum Distributions (RMDs) are required beginning at age 73"):
+        q["question"] = (
+            "For an IRA owner born in 1955, required minimum distributions beginning at age 73 apply to all of the following EXCEPT:"
+        )
+        q["explanation"] = (
+            "Someone born in 1955 attains age 73 in 2028, before January 1, 2033, so SECURE 2.0 section 107 sets the applicable age at 73. A Roth IRA still has no required minimum distribution during the owner's lifetime (IRS retirement-topics page). Most non-spouse beneficiaries of an inherited IRA must empty the account within 10 years under the SECURE Act of 2019. They do not stretch distributions over their own life expectancy. That 10-year rule is the same point made by the stretch-IRA item in this bank."
+        )
+    elif stem.startswith("The 'catch-up contribution' provision"):
+        q["explanation"] = (
+            "A catch-up contribution lets a participant age 50 or older contribute more than the regular annual limit. IRS release IR-2025-111 sets the 2026 IRA catch-up at $1,100, so the IRA total is $7,500 plus $1,100, or $8,600. The 2026 401(k) catch-up for age 50 and older is $8,000, on top of the $24,500 deferral. Participants who turn 60 through 63 in 2026 have a higher 401(k) catch-up of $11,250."
+        )
+    elif stem.startswith("To become fully insured for Social Security"):
+        q["explanation"] = (
+            "Social Security retirement benefits generally require 40 quarters of coverage, which is 10 years of work. The Social Security Administration's 2026 cost-of-living fact sheet, and the November 3, 2025 Federal Register notice, set the 2026 quarter-of-coverage amount at $1,890 of covered earnings. A worker can earn up to four credits in a year."
+        )
+    elif stem.startswith("The standard Medicare Part A deductible covers hospitalization"):
+        q["explanation"] = (
+            "CMS's 2026 Medicare Parts A and B fact sheet says the Part A inpatient deductible covers the first 60 days of a benefit period and is $1,736 in 2026. Days 61 through 90 cost $434 a day. Lifetime reserve days cost $868 a day. For a skilled nursing facility, days 21 through 100 cost $217 a day. The deductible is per benefit period, not per calendar year."
+        )
+    elif stem.startswith("Premium tax credits (PTC) under the ACA"):
+        q["explanation"] = (
+            "For 2026, IRS Revenue Procedure 2025-25 sets the applicable percentage from 2.10 percent of household income below 133 percent of the federal poverty line up to 9.96 percent from 300 percent through 400 percent of the poverty line. The temporary enhancement that allowed a credit above 400 percent of the poverty line expired after 2025. CMS's 2026 program-integrity summary says marketplace premium tax credits again require household income from 100 percent to 400 percent of the poverty line. Income above 400 percent is not eligible."
+        )
+    elif stem.startswith("Medigap Plan G covers all of the following EXCEPT"):
+        q["explanation"] = (
+            "Plan G covers the Part A deductible and inpatient coinsurance, Part B coinsurance, and Part B excess charges. It does not cover the annual Part B deductible. CMS's 2026 fact sheet sets that Part B deductible at $283 and the standard monthly Part B premium at $202.90. The question asks which item Plan G does not cover, which is the Part B deductible, not the dollar amount of the premium."
+        )
+    elif stem.startswith("The Inflation Reduction Act (2022) capped Medicare Part D"):
+        q["question"] = "The annual out-of-pocket cap for Medicare Part D covered drugs in 2026 is:"
+        q["options"]["C"] = "$2,100"
+        q["correct"] = "C"
+        q["explanation"] = (
+            "CMS's final 2026 Part D redesign instructions set the annual out-of-pocket threshold at $2,100. That is the original 2025 cap of $2,000, adjusted for the increase in average Part D drug spending. After the enrollee reaches $2,100, covered Part D drugs have no further enrollee cost sharing for the year."
+        )
+    elif "wait twenty-four" in q["explanation"] or stem.startswith("A candidate fails the Georgia Life Agent exam"):
+        q["explanation"] = (
+            "Handbook #121100 (October 2026) says a reservation must be made at least 24 hours before the exam date. That 24-hour figure is the lead time before the sitting, not a wait after a failing score before the candidate may schedule. A candidate who fails may schedule the next exam within one day, but must wait 14 days to retest after attempts one and two, and 60 days after the third attempt and any later attempt. There is no limit on the number of attempts."
+        )
+    return q
 
 
 TOPICS = [
@@ -387,6 +515,18 @@ def main():
         ),
         ("doc.save('MD_Exam_Prep_Review.pdf');", "doc.save('GA_Exam_Prep_Review.pdf');"),
         ("name:q._dn||'Mixed'", "name:q._dn||q.topic"),
+        (
+            '<button class="mode-btn" id="final-75" type="button">Half (75 q &middot; 75 min)</button>\n          <button class="mode-btn active" id="final-150" type="button">Real exam (140 q &middot; 150 min)</button>',
+            '<button class="mode-btn" id="final-75" type="button">Shorter practice (68 q &middot; 76 min)</button>\n          <button class="mode-btn active" id="final-150" type="button">Full practice sim (135 q &middot; 150 min)</button>',
+        ),
+        (
+            "weak.map(t=>`<span class=\"weak-tag\">${t}</span>`)",
+            "weak.map(t=>`<span class=\"weak-tag\">${fEscape(t)}</span>`)",
+        ),
+        ("/* ---------- Auto-send progress ---------- */", "/* ---------- Progress stays on this device ---------- */"),
+        ("/* ================= Auto-send progress (opt-in) =================", "/* ================= Progress report (not sent) ================="),
+        ("el.innerHTML='<div class=\"sync-t\">Auto-send to your team lead</div>'", "el.innerHTML='<div class=\"sync-t\">Reports stay on this device</div>'"),
+        ("el.innerHTML='<div class=\"sync-row\"><div class=\"sync-t\">Auto-send is on for '+cEsc(c.name)+'</div>'", "el.innerHTML='<div class=\"sync-row\"><div class=\"sync-t\">Saved on this device for '+cEsc(c.name)+'</div>'"),
         (
             '"Maryland Guaranty Corporation limits"',
             '"Georgia Life and Health Insurance Guaranty Association limits"',

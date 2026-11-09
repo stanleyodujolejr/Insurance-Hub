@@ -315,7 +315,7 @@
       "D": "Must wait 14 days only after the fifth attempt"
     },
     "correct": "C",
-    "explanation": "Handbook #121100 states: a candidate who fails can schedule the new exam within one day but must wait fourteen (14) days to retest after exam attempts one and two. A candidate must wait 60 days after the third attempt and any subsequent attempts. There is no limit on the number of attempts. A separate sentence says candidates must wait twenty-four (24) hours before scheduling a reexamination. This practice item uses the retake-policy sentence for attempts one and two.",
+    "explanation": "Handbook #121100 (October 2026) says a reservation must be made at least 24 hours before the exam date. That 24-hour figure is the lead time before the sitting, not a wait after a failing score before the candidate may schedule. A candidate who fails may schedule the next exam within one day, but must wait 14 days to retest after attempts one and two, and 60 days after the third attempt and any later attempt. There is no limit on the number of attempts.",
     "provenance": "original-georgia",
     "refs": [
       "https://www.pearsonvue.com/content/dam/VUE/vue/en/documents/publications/121100.pdf"
@@ -917,18 +917,19 @@
   },
   {
     "topic": "Georgia laws common to life and accident and sickness",
-    "question": "The Official Code of Georgia Annotated volume index, in the 2025 supplement published under authority of the State on legis.ga.gov, titles Chapter 33-29 and Chapter 33-30 as:",
+    "question": "How does the 2025 Official Code of Georgia Annotated treat the end of Chapter 33-30?",
     "options": {
-      "A": "Chapter 33-29, Individual Accident and Sickness Insurance, 33-29-1 through 33-29-22; Chapter 33-30, Group or Blanket Accident and Sickness Insurance, 33-30-1 through 33-30-29",
-      "B": "Chapter 33-29, Medicare Supplement Insurance; Chapter 33-30, Long-term Care Insurance",
-      "C": "Chapter 33-29, Life Insurance; Chapter 33-30, Annuities",
-      "D": "Both chapters end at section 15"
+      "A": "The volume index prints Chapter 33-30 as sections 33-30-1 through 33-30-29, but sections 33-30-28 and 33-30-29 have no enacted text because a 1991 act redesignated them as sections 33-30-12 and 33-30-13",
+      "B": "Chapter 33-30 is Medicare supplement insurance and ends at section 33-30-8",
+      "C": "Chapter 33-30 is life insurance and every section through 33-30-29 has operative text",
+      "D": "The chapter ends at section 33-30-15, and sections 33-30-16 through 33-30-29 were never numbered"
     },
     "correct": "A",
-    "explanation": "The chapter list in the 2025 supplement to the Official Code of Georgia Annotated, Title 33 volume covering chapters 23 through 66, names Chapter 29 as Individual Accident and Sickness Insurance, 33-29-1 through 33-29-22, and Chapter 30 as Group or Blanket Accident and Sickness Insurance, 33-30-1 through 33-30-29. Pearson outline #121102 cites group accident and sickness only through 33-30-15. The official index continues the chapter through 33-30-29. Medicare supplement is Chapter 43 and long-term care is Chapter 42. This item uses the official index titles. It does not recite the text of every section in those chapters.",
+    "explanation": "The 2025 supplement volume index on legis.ga.gov still prints Chapter 30, Group or Blanket Accident and Sickness Insurance, as sections 33-30-1 through 33-30-29. Georgia Commons, reading the 2020 edition of that volume as carried through the 2025 session, prints no enacted text for sections 33-30-28 and 33-30-29. The editor note says Ga. L. 1991, p. 94, § 33 redesignated former sections 33-30-28 and 33-30-29 as present sections 33-30-12 and 33-30-13. Chapter 29 remains Individual Accident and Sickness Insurance, sections 33-29-1 through 33-29-22, in the same volume index. This item does not guess the text of sections that the supplement does not reprint.",
     "provenance": "original-georgia",
     "refs": [
-      "https://www.legis.ga.gov/api/document/docs/default-source/joint-features-document-library/t33-ch23-66-%28v25%29-pdf.pdf"
+      "https://www.legis.ga.gov/api/document/docs/default-source/joint-features-document-library/t33-ch23-66-%28v25%29-pdf.pdf",
+      "https://georgiacommons.org/code/33-30-28"
     ]
   },
   {
