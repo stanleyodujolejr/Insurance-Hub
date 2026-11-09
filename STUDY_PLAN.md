@@ -3,6 +3,8 @@
 **For:** Richard (Maryland) and Teyah (Virginia)
 **Tool:** https://crackedpoet.github.io/Insurance-Hub/
 
+This plan is the Maryland and Virginia handoff. It is not the Georgia practice added on a later branch. Georgia sources, and the difference between that branch and published `main`, are in `GEORGIA_SOURCES.md`. The tool link above is the address written in this handoff; the repository remote is `stanleyodujolejr/Insurance-Hub`.
+
 ---
 
 ## Why this plan looks the way it does
