@@ -994,7 +994,7 @@ function progColor(p){return p>=70?'var(--sc-good)':p>=50?'var(--sc-warn)':'var(
    never waits on it and works fully offline without it. A rejected
    response is stored as an error and does not block studying.          */
 var IHUB_SYNC_URL='https://script.google.com/macros/s/AKfycbwda1rK5LLe7j1KgqQwa-SV5tbMJ5KsE0GsJT-6CDkb-JlKxOzEp0qu_kMDqbG7Y-ii/exec';
-var GA_SYNC_LIVE=false;
+var GA_SYNC_LIVE=true;
 var SYNC_GAP=5*60000;
 /* key is computed lazily: COACH_STATE is assigned later in the file than this block */
 function syncKey(){return 'ihub_sync_'+COACH_STATE;}

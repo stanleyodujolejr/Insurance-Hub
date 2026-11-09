@@ -1,10 +1,10 @@
 # Georgia progress sync
 
-The live Apps Script is in `apps-script/live/`. It is the project Insurance Hub progress sync (`scriptId` `1lmwo8X8yWRHlt3xlIQVq_pfODLmXAktrmhGusopHLvcerdJGPLI7N3bk`), bound to the sheet Insurance Hub Progress. The web app `AKfycbwda1rK5LLe7j1KgqQwa-SV5tbMJ5KsE0GsJT-6CDkb-JlKxOzEp0qu_kMDqbG7Y-ii` is deployment version 4 of that project. `appsscript.json` and `.clasp.json` match that project. `user_progress.gs` matches the live file plus the changes below.
+The live Apps Script is in `apps-script/live/`. It is the project Insurance Hub progress sync (`scriptId` `1lmwo8X8yWRHlt3xlIQVq_pfODLmXAktrmhGusopHLvcerdJGPLI7N3bk`), bound to the sheet Insurance Hub Progress. The web app `AKfycbwda1rK5LLe7j1KgqQwa-SV5tbMJ5KsE0GsJT-6CDkb-JlKxOzEp0qu_kMDqbG7Y-ii` is deployment version 5, which accepts `state` `GA`. `user_progress.gs` in this repo matches that deployment. Version 4 is the previous deployment and the rollback target below.
 
 Georgia posts the same shape Maryland and Virginia already post: `name`, `state`, `team`, `summary`, `result`, and `report`. The Pearson track is `summary.track` (`Life 12-GA-01`, `A&S 12-GA-02`, or `Combo 12-GA-05`). The script stores that as Exam type on Log, Latest, and Results, so the Sunday team-lead digest includes it. There is no separate Georgia tab.
 
-`GA_SYNC_LIVE` stays `false` in `GA_Exam_Prep.html`. Merging does not start Georgia posts from the page.
+Sync is live. `GA_SYNC_LIVE` is `true` in `GA_Exam_Prep.html`. The page uses the same web-app URL as Maryland and Virginia and Georgia's own storage keys (`ihub_sync_GA` and the other `ihub_*_GA` keys). Nothing is posted until the student types a first name and turns auto-send on.
 
 ## Changes from the live script
 
@@ -71,4 +71,4 @@ Rollback is the same deployment id at version 4:
 clasp redeploy AKfycbwda1rK5LLe7j1KgqQwa-SV5tbMJ5KsE0GsJT-6CDkb-JlKxOzEp0qu_kMDqbG7Y-ii -V 4
 ```
 
-In a follow-up pull request, change `var GA_SYNC_LIVE=false;` to `var GA_SYNC_LIVE=true;` in `GA_Exam_Prep.html`. That is the line that allows the page to POST.
+`var GA_SYNC_LIVE=true;` is already set in `GA_Exam_Prep.html`. That is the line that allows the page to POST. Set it back to `false` only to stop Georgia posts without redeploying the script.

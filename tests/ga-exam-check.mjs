@@ -38,7 +38,7 @@ assert.match(gaHtml, /Georgia Life, Accident & Sickness practice \(GA Exam Prep\
 assert.match(gaHtml, /Life, Accident &amp; Sickness combo/);
 assert.equal(gaHtml.includes("'>Life &amp; Health</option>'"), false);
 assert.equal(gaHtml.includes('GA_SYNC_OFF'), false);
-assert.match(gaHtml, /var GA_SYNC_LIVE=false;/);
+assert.match(gaHtml, /var GA_SYNC_LIVE=true;/);
 assert.equal(gaHtml.includes('Only the numbers in this report are sent'), false);
 assert.match(gaHtml, /Your name and your progress report are sent/);
 assert.match(gaHtml, /Team sending isn\\'t switched on yet/);
@@ -104,16 +104,18 @@ function boot(search) {
 const page = boot('?team=qa-team');
 assert.equal(page.COACH_STATE, 'GA');
 assert.equal(page.GA_SYNC_OFF, undefined);
-assert.equal(page.GA_SYNC_LIVE, false);
+assert.equal(page.GA_SYNC_LIVE, true);
 assert.equal(page.IHUB_SYNC_URL, mdSyncUrl);
 assert.equal(page.__bank.length, 559);
 assert.equal(page.__fetches(), 0);
-page.syncPut({ on: true, name: 'Ada', tried: 0 });
 page.syncSend(true);
 page.syncBeacon();
-assert.equal(page.__fetches(), 0, 'Georgia sync must not post while GA_SYNC_LIVE is false');
+assert.equal(page.__fetches(), 0, 'Georgia sync must not post before opt-in');
 page.syncPaint();
-assert.match(page.document.getElementById('sync-box').innerHTML, /Team sending isn't switched on yet/);
+const syncBox = page.document.getElementById('sync-box').innerHTML;
+assert.match(syncBox, /Auto-send to your team lead/);
+assert.match(syncBox, /Turn on/);
+assert.equal(/isn't switched on yet/.test(syncBox), false);
 
 let posted = null;
 let beacons = 0;
@@ -122,7 +124,10 @@ page.fetch = function (url, opts) {
   return Promise.resolve({ json() { return Promise.resolve({ ok: true, lead: 'Lead' }); } });
 };
 page.navigator.sendBeacon = function () { beacons += 1; return true; };
-page.GA_SYNC_LIVE = true;
+page.syncPut({ on: true, name: 'Ada', tried: 0 });
+assert.ok(page.__store.ihub_sync_GA);
+assert.equal(page.__store.ihub_sync_MD, undefined);
+assert.equal(page.__store.ihub_sync_VA, undefined);
 page.localStorage.setItem('ihub_track_GA', 'life');
 page.trackApply();
 page.syncSend(true);
