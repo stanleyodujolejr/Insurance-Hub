@@ -436,8 +436,8 @@ body.coach-open .c-fab-x{opacity:1;transform:rotate(0)}
         </div>
         <div class="section-label">Choose length</div>
         <div class="mode-row" style="margin-bottom:14px">
-          <button class="mode-btn" id="final-75" type="button">Shorter practice (68 q &middot; 76 min)</button>
-          <button class="mode-btn active" id="final-150" type="button">Full practice sim (135 q &middot; 150 min)</button>
+          <button class="mode-btn" id="final-75" type="button">Half-length practice exam</button>
+          <button class="mode-btn active" id="final-150" type="button">Full-length exam (timed like the real test)</button>
         </div>
         <button class="gen-btn" id="final-start" type="button" style="width:100%">&#9654; Start Final Exam</button>
       </div>
@@ -693,7 +693,7 @@ function switchTab(tab){
 }
 
 // =============== FINAL EXAM MODE ===============
-let finalState={length:140,duration:150,questions:[],answers:{},startTime:0,timerId:null,submitted:false};
+let finalState={length:0,duration:0,questions:[],answers:{},startTime:0,timerId:null,submitted:false};
 function pickFinalExamQuestions(length){
   var domains=OUTLINE_WEIGHTS.filter(function(d){
     return d.weight>0 && BANK.some(function(q){return d.topics.indexOf(q.topic)>=0;});

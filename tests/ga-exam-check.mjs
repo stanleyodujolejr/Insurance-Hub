@@ -279,4 +279,28 @@ assert.equal(chapter30.correct, 'A');
 assert.match(chapter30.options.A, /33-30-28 and 33-30-29 have no enacted text/);
 assert.equal(page.__bank.length, 559);
 
+assert.equal(/length:\s*140|__finalLen=140|\|\|140|140 q/.test(gaHtml), false);
+assert.match(gaHtml, /Half-length practice exam/);
+assert.match(gaHtml, /Full-length exam \(timed like the real test\)/);
+function labelsFor(track) {
+  page.localStorage.setItem('ihub_track_GA', track);
+  page.trackApply();
+  page.trackFinalLabels();
+  return {
+    full: page.document.getElementById('final-150').innerHTML,
+    half: page.document.getElementById('final-75').innerHTML
+  };
+}
+const lifeLabels = labelsFor('life');
+const healthLabels = labelsFor('health');
+const comboLabels = labelsFor('lh');
+assert.equal(lifeLabels.full, 'Full practice sim (90 q &middot; 120 min)');
+assert.equal(lifeLabels.half, 'Shorter practice (45 q &middot; 60 min)');
+assert.equal(healthLabels.full, lifeLabels.full);
+assert.equal(healthLabels.half, lifeLabels.half);
+assert.equal(comboLabels.full, 'Full practice sim (135 q &middot; 150 min)');
+assert.equal(comboLabels.half, 'Shorter practice (68 q &middot; 76 min)');
+labelsFor('life');
+assert.equal(page.document.getElementById('final-150').innerHTML, lifeLabels.full);
+
 console.log('ga-exam-check: ok', page.__bank.length, 'questions');

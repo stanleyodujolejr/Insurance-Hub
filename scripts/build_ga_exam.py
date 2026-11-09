@@ -515,9 +515,10 @@ def main():
         ),
         ("doc.save('MD_Exam_Prep_Review.pdf');", "doc.save('GA_Exam_Prep_Review.pdf');"),
         ("name:q._dn||'Mixed'", "name:q._dn||q.topic"),
+        ("let finalState={length:140,duration:150", "let finalState={length:0,duration:0"),
         (
             '<button class="mode-btn" id="final-75" type="button">Half (75 q &middot; 75 min)</button>\n          <button class="mode-btn active" id="final-150" type="button">Real exam (140 q &middot; 150 min)</button>',
-            '<button class="mode-btn" id="final-75" type="button">Shorter practice (68 q &middot; 76 min)</button>\n          <button class="mode-btn active" id="final-150" type="button">Full practice sim (135 q &middot; 150 min)</button>',
+            '<button class="mode-btn" id="final-75" type="button">Half-length practice exam</button>\n          <button class="mode-btn active" id="final-150" type="button">Full-length exam (timed like the real test)</button>',
         ),
         (
             "weak.map(t=>`<span class=\"weak-tag\">${t}</span>`)",
