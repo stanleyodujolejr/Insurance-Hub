@@ -58,9 +58,8 @@ Meet on a call or in person. Same agenda every time, no freestyling:
 
 **Final Exam** tab, **Real exam** length, sit it in one go with no notes and no phone.
 
-- MD: 140 questions / 150 minutes
-- VA: 150 questions / 150 minutes
-- Pass mark: **70%**
+- MD: 130 scored + 10 unscored practice items / 150 minutes. Pass mark is **70% of the scored items** (91).
+- VA: 140 scored + 10 unscored practice items / 150 minutes. Pass mark is **70% of the scored items** (98).
 
 Treat it like the real thing. The score matters less than the domain breakdown it gives you, because that's what sets next week's focus.
 
