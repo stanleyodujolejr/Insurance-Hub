@@ -954,7 +954,7 @@ function renderFinalExamQuestions(){
   var picked=finalState.answers[i];
   var html='<div class="qcard" id="final-card">';
   html+='<div class="qnum">Question '+(i+1)+' of '+qs.length+' · '+fEscape(q._dn||q.topic)+'</div>';
-  html+='<div class="qtext">'+fEscape(q.question)+'</div>';
+  html+='<div class="qtext" id="final-qtext" tabindex="-1">'+fEscape(q.question)+'</div>';
   html+='<div class="options" id="fopt">';
   order.forEach(function(pair,slot){
     var cls='opt';
@@ -974,7 +974,7 @@ function renderFinalExamQuestions(){
   var pos=seq.indexOf(i);
   html+='<div class="q-nav">';
   html+='<button type="button" id="final-prev"'+(pos<=0?' disabled':'')+'>Previous</button>';
-  if(!review) html+='<button type="button" id="final-flag">'+(finalState.flags[i]?'Flagged':'Flag for review')+'</button>';
+  if(!review) html+='<button type="button" id="final-flag" aria-pressed="'+(finalState.flags[i]?'true':'false')+'">'+(finalState.flags[i]?'Flagged':'Flag for review')+'</button>';
   html+='<button type="button" id="final-next"'+(pos<0||pos>=seq.length-1?' disabled':'')+'>Next</button>';
   html+='</div>';
   if(finalState.filter) html+='<div style="margin-top:8px"><button type="button" id="final-all">Show all questions</button></div>';
@@ -989,10 +989,18 @@ function renderFinalExamQuestions(){
       c+= finalState.answers[n]===qs[n].correct?' ok':' bad';
     }
     var title=review&&qs[n]._unscored?'Unscored practice item':'Question '+(n+1);
-    html+='<button type="button" class="'+c.trim()+'" data-jump="'+n+'" title="'+fEscape(title)+'">'+(n+1)+'</button>';
+    html+='<button type="button" class="'+c.trim()+'" data-jump="'+n+'" title="'+fEscape(title)+'"'+(n===i?' aria-current="true"':'')+'>'+(n+1)+'</button>';
   }
   html+='</div></div>';
   con.innerHTML=html;
+  try{
+    var qEl=document.getElementById('final-qtext');
+    if(qEl&&qEl.focus){
+      var ae=document.activeElement;
+      var still=ae&&con.contains&&con.contains(ae);
+      if(!still) qEl.focus();
+    }
+  }catch(e){}
   if(!review){
     con.querySelectorAll('.opt').forEach(function(btn){
       btn.addEventListener('click',function(){ finalPick(i,this.dataset.fletter); });
@@ -1440,11 +1448,13 @@ planCoverage=function(){
   var tot=0,seen=0; BANK.forEach(function(q){if(!inTrack(q.topic))return;tot++;if(m[qid(q)])seen++;});
   return {seen:seen,total:tot,left:tot-seen};
 };
+/* Any length other than 75 means the full sitting. Button wiring uses this same value. */
+var FINAL_FULL_SIGNAL=140;
 function trackExamLen(len){var s=examShape(len);return s.scored+s.unscored;}
 function trackExamDur(len){return examShape(len).minutes;}
 function trackFinalLabels(){
   var b=document.getElementById('final-150'); if(!b)return;
-  var full=examShape(150), half=examShape(75);
+  var full=examShape(FINAL_FULL_SIGNAL), half=examShape(75);
   function lab(s){return s.scored+' scored + '+s.unscored+' unscored &middot; '+s.minutes+' min';}
   b.innerHTML='Real exam ('+lab(full)+')';
   var h=document.getElementById('final-75'); if(!h)return;
@@ -1797,7 +1807,13 @@ function renderReview(){
   document.getElementById('rev-total').textContent=n;document.getElementById('rev-correct').textContent=nc;document.getElementById('rev-pct').textContent=n>0?Math.round(nc/n*100)+'%':'—';
   const con=document.getElementById('review-container');
   if(!items.length){con.innerHTML='<div class="review-empty">No answered questions yet.<br>Complete practice questions to build your review list.</div>';return;}
-  con.innerHTML=items.map(r=>`<div class="review-card ${r.isCorrect?'rc-c':'rc-w'}"><div class="review-topic">${r.topic} &middot; ${r.isCorrect?'&#10003; Correct':'&#10007; Incorrect'}</div><div class="review-qtext">${r.question}</div><div class="review-opts">${['A','B','C','D'].map(l=>`<div class="review-opt ${l===r.correct?'ro-c':(l===r.userAnswer&&!r.isCorrect?'ro-w':'')}"><span style="font-weight:700;min-width:16px;flex-shrink:0">${l}</span><span>${(r.options||{})[l]||''}</span></div>`).join('')}</div><div class="review-expl"><strong>Explanation:</strong> ${r.explanation}</div></div>`).join('');
+  con.innerHTML=items.map(function(r){
+    var opts=['A','B','C','D'].map(function(l){
+      var cls=l===r.correct?'ro-c':(l===r.userAnswer&&!r.isCorrect?'ro-w':'');
+      return '<div class="review-opt '+cls+'"><span style="font-weight:700;min-width:16px;flex-shrink:0">'+l+'</span><span>'+fEscape((r.options||{})[l]||'')+'</span></div>';
+    }).join('');
+    return '<div class="review-card '+(r.isCorrect?'rc-c':'rc-w')+'"><div class="review-topic">'+fEscape(r.topic)+' &middot; '+(r.isCorrect?'&#10003; Correct':'&#10007; Incorrect')+'</div><div class="review-qtext">'+fEscape(r.question)+'</div><div class="review-opts">'+opts+'</div><div class="review-expl"><strong>Explanation:</strong> '+fEscape(r.explanation)+'</div></div>';
+  }).join('');
 }
 function clearAll(){if(!confirm('Clear all progress and review history? This cannot be undone.'))return;state={mode:'random',selectedTopic:null,total:0,correct:0,streak:0,topicScores:{},reviewHistory:[],seenIds:{},examHistory:[],srs:{},cards:{}};initPools();save();updateStats();document.getElementById('questions-container').innerHTML='';renderReview();}
 
@@ -2429,10 +2445,10 @@ try{coachInit();}catch(e){console.error("Coach init failed:",e);}
   bind('#mode-md',function(){setMode('md');});
   // Final Exam wiring
   var f75=document.getElementById('final-75'),f150=document.getElementById('final-150');
-  window.__finalLen=140;
+  window.__finalLen=FINAL_FULL_SIGNAL;
   if(f75)f75.addEventListener('click',function(){window.__finalLen=75;f75.classList.add('active');if(f150)f150.classList.remove('active');});
-  if(f150)f150.addEventListener('click',function(){window.__finalLen=140;f150.classList.add('active');if(f75)f75.classList.remove('active');});
-  bind('#final-start',function(){startFinalExam(window.__finalLen||140);});
+  if(f150)f150.addEventListener('click',function(){window.__finalLen=FINAL_FULL_SIGNAL;f150.classList.add('active');if(f75)f75.classList.remove('active');});
+  bind('#final-start',function(){startFinalExam(window.__finalLen||FINAL_FULL_SIGNAL);});
   bind('#final-submit',function(){submitFinalExam();});
   document.querySelectorAll('.gen-btn').forEach(function(b){if(!b.onclick && b.id!=='final-start' && b.id!=='final-retry')b.addEventListener('click',generateQuestions);});
   document.querySelectorAll('.export-btn').forEach(function(b){if(!b.onclick)b.addEventListener('click',exportPDF);});

@@ -955,7 +955,7 @@ function renderFinalExamQuestions(){
   var picked=finalState.answers[i];
   var html='<div class="qcard" id="final-card">';
   html+='<div class="qnum">Question '+(i+1)+' of '+qs.length+' · '+fEscape(q._dn||q.topic)+'</div>';
-  html+='<div class="qtext">'+fEscape(q.question)+'</div>';
+  html+='<div class="qtext" id="final-qtext" tabindex="-1">'+fEscape(q.question)+'</div>';
   html+='<div class="options" id="fopt">';
   order.forEach(function(pair,slot){
     var cls='opt';
@@ -975,7 +975,7 @@ function renderFinalExamQuestions(){
   var pos=seq.indexOf(i);
   html+='<div class="q-nav">';
   html+='<button type="button" id="final-prev"'+(pos<=0?' disabled':'')+'>Previous</button>';
-  if(!review) html+='<button type="button" id="final-flag">'+(finalState.flags[i]?'Flagged':'Flag for review')+'</button>';
+  if(!review) html+='<button type="button" id="final-flag" aria-pressed="'+(finalState.flags[i]?'true':'false')+'">'+(finalState.flags[i]?'Flagged':'Flag for review')+'</button>';
   html+='<button type="button" id="final-next"'+(pos<0||pos>=seq.length-1?' disabled':'')+'>Next</button>';
   html+='</div>';
   if(finalState.filter) html+='<div style="margin-top:8px"><button type="button" id="final-all">Show all questions</button></div>';
@@ -990,10 +990,18 @@ function renderFinalExamQuestions(){
       c+= finalState.answers[n]===qs[n].correct?' ok':' bad';
     }
     var title=review&&qs[n]._unscored?'Unscored practice item':'Question '+(n+1);
-    html+='<button type="button" class="'+c.trim()+'" data-jump="'+n+'" title="'+fEscape(title)+'">'+(n+1)+'</button>';
+    html+='<button type="button" class="'+c.trim()+'" data-jump="'+n+'" title="'+fEscape(title)+'"'+(n===i?' aria-current="true"':'')+'>'+(n+1)+'</button>';
   }
   html+='</div></div>';
   con.innerHTML=html;
+  try{
+    var qEl=document.getElementById('final-qtext');
+    if(qEl&&qEl.focus){
+      var ae=document.activeElement;
+      var still=ae&&con.contains&&con.contains(ae);
+      if(!still) qEl.focus();
+    }
+  }catch(e){}
   if(!review){
     con.querySelectorAll('.opt').forEach(function(btn){
       btn.addEventListener('click',function(){ finalPick(i,this.dataset.fletter); });
@@ -1038,7 +1046,7 @@ function submitFinalExam(force){
   let html='<div style="background:#fff;border-radius:12px;padding:20px;margin-bottom:14px;text-align:center">'
     +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:8px">'+kind+' · scored items only</div>'
     +'<div style="font-size:42px;font-weight:800;color:'+(passed?'var(--sc-good)':'var(--sc-bad)')+';margin-bottom:6px">'+pct+'%</div>'
-    +'<div style="font-size:18px;font-weight:600;color:'+(passed?'var(--sc-good)':'var(--sc-bad)')+'">'+(passed?'✓ PASS (70% of scored items)':'Below 70% of scored items')+'</div>'
+    +'<div style="font-size:18px;font-weight:600;color:'+(passed?'var(--sc-good)':'var(--sc-bad)')+'">'+(passed?'✓ PASS (this page\'s pass mark: 70% of scored items)':'Below this page\'s pass mark (70% of scored items)')+'</div>'
     +'<div style="font-size:13px;color:#666;margin-top:6px">'+scoredCorrect+' of '+scoredTotal+' scored correct</div>'
     +'<div style="font-size:13px;color:#854F0B;margin-top:6px">'+unscoredN+' unscored practice item'+(unscoredN===1?'':'s')+' were mixed in and are not part of this score. Review marks each one.</div></div>'
     +'<div style="background:#fff;border-radius:12px;padding:18px;margin-bottom:14px">'
@@ -1798,7 +1806,13 @@ function renderReview(){
   document.getElementById('rev-total').textContent=n;document.getElementById('rev-correct').textContent=nc;document.getElementById('rev-pct').textContent=n>0?Math.round(nc/n*100)+'%':'—';
   const con=document.getElementById('review-container');
   if(!items.length){con.innerHTML='<div class="review-empty">No answered questions yet.<br>Complete practice questions to build your review list.</div>';return;}
-  con.innerHTML=items.map(r=>`<div class="review-card ${r.isCorrect?'rc-c':'rc-w'}"><div class="review-topic">${r.topic} &middot; ${r.isCorrect?'&#10003; Correct':'&#10007; Incorrect'}</div><div class="review-qtext">${r.question}</div><div class="review-opts">${['A','B','C','D'].map(l=>`<div class="review-opt ${l===r.correct?'ro-c':(l===r.userAnswer&&!r.isCorrect?'ro-w':'')}"><span style="font-weight:700;min-width:16px;flex-shrink:0">${l}</span><span>${(r.options||{})[l]||''}</span></div>`).join('')}</div><div class="review-expl"><strong>Explanation:</strong> ${r.explanation}</div></div>`).join('');
+  con.innerHTML=items.map(function(r){
+    var opts=['A','B','C','D'].map(function(l){
+      var cls=l===r.correct?'ro-c':(l===r.userAnswer&&!r.isCorrect?'ro-w':'');
+      return '<div class="review-opt '+cls+'"><span style="font-weight:700;min-width:16px;flex-shrink:0">'+l+'</span><span>'+fEscape((r.options||{})[l]||'')+'</span></div>';
+    }).join('');
+    return '<div class="review-card '+(r.isCorrect?'rc-c':'rc-w')+'"><div class="review-topic">'+fEscape(r.topic)+' &middot; '+(r.isCorrect?'&#10003; Correct':'&#10007; Incorrect')+'</div><div class="review-qtext">'+fEscape(r.question)+'</div><div class="review-opts">'+opts+'</div><div class="review-expl"><strong>Explanation:</strong> '+fEscape(r.explanation)+'</div></div>';
+  }).join('');
 }
 function clearAll(){if(!confirm('Clear all progress and review history? This cannot be undone.'))return;state={mode:'random',selectedTopic:null,total:0,correct:0,streak:0,topicScores:{},reviewHistory:[],seenIds:{},examHistory:[],srs:{},cards:{}};initPools();save();updateStats();document.getElementById('questions-container').innerHTML='';renderReview();}
 

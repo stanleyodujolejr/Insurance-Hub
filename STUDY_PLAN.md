@@ -58,8 +58,8 @@ Meet on a call or in person. Same agenda every time, no freestyling:
 
 **Final Exam** tab, **Real exam** length, sit it in one go with no notes and no phone.
 
-- MD: 130 scored + 10 unscored practice items / 150 minutes. Pass mark is **70% of the scored items** (91).
-- VA: 140 scored + 10 unscored practice items / 150 minutes. Pass mark is **70% of the scored items** (98).
+- MD Series 20-30: 130 scored + 10 unscored practice items / 150 minutes. The official pass mark is **70% of the scored items** (91). Life only is Series 20-27 and Health only is Series 20-24: 80 scored + 10 unscored / 105 minutes, same 70% of scored items.
+- VA Series 11-01: 140 scored + 10 unscored practice items / 150 minutes. The pass mark on this page is **70% of the scored items** (98). That 70% is this practice page’s mark, not a cut score printed for Virginia. Life & Annuities is Series 11-05 and Health is Series 11-06: 90 scored + 15 unscored / 120 minutes, with the same page pass mark.
 
 Treat it like the real thing. The score matters less than the domain breakdown it gives you, because that's what sets next week's focus.
 
