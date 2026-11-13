@@ -1,0 +1,5 @@
+# Written locally by clasp, or on the GitHub Actions runner from environment secrets.
+# Do not commit a script ID or a login token.
+.clasp.json
+.clasprc.json
+node_modules/

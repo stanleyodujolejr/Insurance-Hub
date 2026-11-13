@@ -1,0 +1,178 @@
+# Pushes apps-script/live to the existing Apps Script project, then updates
+# the existing web-app deployment when DEPLOYMENT_ID is set.
+# Credential files are written from secrets and are never printed.
+
+name: Deploy Apps Script
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps-script/live/**"
+      - "!apps-script/live/.clasp.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: deploy-apps-script
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Manual runs use the workflow file on the selected branch. This condition
+    # skips every ref except main. The production environment is limited to
+    # main and has no required reviewers, so a push to main still deploys.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Require Apps Script credentials
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLASPRC_JSON}" ]; then
+            echo "::error title=Missing CLASPRC_JSON::Production environment secret CLASPRC_JSON is not set. On your PC run npx @google/clasp@3.4.1 login, then paste the contents of %USERPROFILE%\\.clasprc.json into that environment secret. See DEPLOY.md."
+            exit 1
+          fi
+          if [ -z "${APPS_SCRIPT_ID}" ]; then
+            echo "::error title=Missing APPS_SCRIPT_ID::Production environment secret APPS_SCRIPT_ID is not set. In the Apps Script editor open Project Settings and copy Script ID into that environment secret. See DEPLOY.md."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+
+      - name: Install clasp
+        working-directory: tools/clasp
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts
+          echo "${GITHUB_WORKSPACE}/tools/clasp/node_modules/.bin" >> "${GITHUB_PATH}"
+
+      - name: Write clasp config
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import sys
+          from pathlib import Path
+
+          def fail(title, message):
+              print(f"::error title={title}::{message}", file=sys.stderr)
+              sys.exit(1)
+
+          raw = os.environ.get("CLASPRC_JSON", "")
+          script_id = os.environ.get("APPS_SCRIPT_ID", "").strip()
+          if not raw.strip():
+              fail(
+                  "Missing CLASPRC_JSON",
+                  "Production environment secret CLASPRC_JSON is empty. On your PC run "
+                  "npx @google/clasp@3.4.1 login, then paste the contents of "
+                  "%USERPROFILE%\\.clasprc.json into that environment secret. See DEPLOY.md.",
+              )
+          if not script_id:
+              fail(
+                  "Missing APPS_SCRIPT_ID",
+                  "Production environment secret APPS_SCRIPT_ID is empty. In the Apps Script editor "
+                  "open Project Settings and copy Script ID into that environment secret. See DEPLOY.md.",
+              )
+
+          text = raw.lstrip("\ufeff")
+          try:
+              creds = json.loads(text)
+          except json.JSONDecodeError:
+              fail(
+                  "Invalid CLASPRC_JSON",
+                  "CLASPRC_JSON is not valid JSON. Paste the raw clasp credentials file, "
+                  "with no extra quotes around it. See DEPLOY.md.",
+              )
+
+          def usable(data):
+              if not isinstance(data, dict):
+                  return False
+              tokens = data.get("tokens")
+              if isinstance(tokens, dict) and any(isinstance(value, dict) and value for value in tokens.values()):
+                  return True
+              token = data.get("token")
+              if isinstance(token, dict) and token:
+                  return True
+              access_token = data.get("access_token")
+              return isinstance(access_token, str) and bool(access_token.strip())
+
+          if isinstance(creds, str):
+              fail(
+                  "Invalid CLASPRC_JSON",
+                  "CLASPRC_JSON is a JSON string, not an object. Paste the file contents themselves. See DEPLOY.md.",
+              )
+          if not usable(creds):
+              fail(
+                  "Invalid CLASPRC_JSON",
+                  "CLASPRC_JSON does not look like a clasp credentials file. Expected the tokens "
+                  "map from clasp login, or an older token or access_token file. See DEPLOY.md.",
+              )
+          if re.fullmatch(r"[A-Za-z0-9_-]{20,200}", script_id) is None:
+              fail(
+                  "Invalid APPS_SCRIPT_ID",
+                  "APPS_SCRIPT_ID does not look like an Apps Script script ID. Copy Project Settings, "
+                  "Script ID only, with no spaces or quotes. See DEPLOY.md.",
+              )
+
+          clasprc = Path.home() / ".clasprc.json"
+          payload = text if text.endswith("\n") else text + "\n"
+          clasprc.write_text(payload, encoding="utf-8")
+          clasprc.chmod(0o600)
+
+          # rootDir is the folder that contains appsscript.json and the .gs source.
+          project = {"scriptId": script_id, "rootDir": "apps-script/live"}
+          clasp_json = Path(".clasp.json")
+          clasp_json.write_text(json.dumps(project, indent=2) + "\n", encoding="utf-8")
+          clasp_json.chmod(0o600)
+          PY
+
+      - name: Push Apps Script
+        run: clasp push -f
+
+      - name: Update the existing web app deployment
+        env:
+          DEPLOYMENT_ID: ${{ secrets.DEPLOYMENT_ID }}
+        run: |
+          set -euo pipefail
+          # Trim only the ends, so a bad paste is rejected instead of joined together.
+          id="${DEPLOYMENT_ID#"${DEPLOYMENT_ID%%[![:space:]]*}"}"
+          id="${id%"${id##*[![:space:]]}"}"
+          if [ -z "${id}" ]; then
+            echo "DEPLOYMENT_ID is not set. Skipping clasp deploy. The script project was updated with clasp push. The existing web app keeps serving its current version until you add the DEPLOYMENT_ID production environment secret and run this workflow again from main. See DEPLOY.md."
+            exit 0
+          fi
+          if [[ ! "${id}" =~ ^[A-Za-z0-9_-]+$ ]]; then
+            echo "::error title=Invalid DEPLOYMENT_ID::DEPLOYMENT_ID is set but does not look like a deployment ID. In the Apps Script editor open Deploy, then Manage deployments, and copy the ID of the existing web app. Do not create a new deployment. See DEPLOY.md."
+            exit 1
+          fi
+          clasp deploy -i "${id}"
+
+      - name: Remove local clasp credentials
+        if: always()
+        run: |
+          set -euo pipefail
+          rm -f "${HOME}/.clasprc.json" .clasp.json

@@ -1,0 +1,11 @@
+{
+  "name": "insurance-hub-clasp",
+  "private": true,
+  "description": "Pinned clasp CLI for the Apps Script deploy workflow.",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@google/clasp": "3.4.1"
+  }
+}

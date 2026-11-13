@@ -18,6 +18,8 @@ Sheets does not keep the apostrophe: the cell shows the original text and has no
 
 ## Deploy with clasp 3.4.1
 
+GitHub Actions deploys `apps-script/live/` when that folder changes on `main`. One-time setup is in `DEPLOY.md`. `.clasp.json` is not in git. The manual steps below need a local `.clasp.json` that you create and do not commit.
+
 Do this after the pull request is merged. Do not paste the script by hand and do not create a second web app. `clasp redeploy <deploymentId>` is the 3.4.1 command that updates an existing deployment (`update-deployment`). With no version flag it creates a new version from the pushed files and points that deployment at it. `clasp deploy -i <id>` calls the same operation.
 
 From `apps-script/live`:
