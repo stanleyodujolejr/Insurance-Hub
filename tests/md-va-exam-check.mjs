@@ -26,13 +26,13 @@ for (const [name, html] of [['MD', mdHtml], ['VA', vaHtml]]) {
 function boot(html, stateCode) {
   const hooked = html.replace(
     'boot();',
-    'globalThis.__bank=BANK; globalThis.__outline=function(){return OUTLINE_WEIGHTS.map(function(d){return Object.assign({},d,{topics:d.topics.slice()});});}; globalThis.__tracks=TRACK_DEFS; globalThis.__lh=TRACK_LH; globalThis.__final=function(){return finalState;}; globalThis.__seen=function(){return state.seenIds;}; boot();'
+    'globalThis.__bank=BANK; globalThis.__outline=function(){return OUTLINE_WEIGHTS.map(function(d){return Object.assign({},d,{topics:d.topics.slice()});});}; globalThis.__tracks=TRACK_DEFS; globalThis.__lh=TRACK_LH; globalThis.__final=function(){return finalState;}; globalThis.__seen=function(){return state.seenIds;}; globalThis.__hist=function(){return state.reviewHistory;}; boot();'
   );
   const scripts = scriptsOf(hooked);
-  function el() {
+  function el(id) {
     return {
       style: {}, dataset: {}, className: '', innerHTML: '', textContent: '',
-      value: '10', hidden: false,
+      value: (id === 'rev-topic' || id === 'rev-result') ? '' : '10', hidden: false,
       classList: { toggle() {}, add() {}, remove() {}, contains() { return false; } },
       addEventListener() {}, appendChild(c) { return c; }, removeChild() {},
       setAttribute() {}, getAttribute() { return ''; }, focus() {},
@@ -50,7 +50,7 @@ function boot(html, stateCode) {
   const sandbox = {
     console, localStorage,
     document: {
-      getElementById(id) { if (!els[id]) els[id] = el(); return els[id]; },
+      getElementById(id) { if (!els[id]) els[id] = el(id); return els[id]; },
       querySelector() { return el(); }, querySelectorAll() { return []; },
       addEventListener() {}, createElement() { return el(); },
       documentElement: { setAttribute() {}, getAttribute() { return null; } },
@@ -160,6 +160,9 @@ function assertFull(page, startLen, scored, unscored, minutes, domains) {
   assert.equal((html.match(/class="qcard"/g) || []).length, 1);
   assert.equal(/Unscored practice item/.test(html), false);
   assert.match(html, /Flag for review/);
+  assert.match(html, /aria-pressed="false"/);
+  assert.match(html, /aria-current="true"/);
+  assert.match(html, /id="final-qtext"/);
   assert.match(html, /id="final-prev"/);
   assert.match(html, /id="final-next"/);
   assert.match(html, /data-jump=/);
@@ -395,11 +398,12 @@ va.localStorage.setItem('ihub_track_VA', 'lh');
 va.trackApply();
 
 html = grade(va, 150, 97);
-assert.match(html, /Below 70%/);
+assert.match(html, /Below this page's pass mark \(70% of scored items\)/);
 assert.match(html, /97 of 140 scored/);
 html = grade(va, 150, 98);
-assert.match(html, /PASS \(70% of scored items\)/);
+assert.match(html, /PASS \(this page's pass mark: 70% of scored items\)/);
 assert.match(html, /98 of 140 scored/);
+assert.equal(/official pass mark/i.test(html), false);
 
 va.trackFinalLabels();
 assert.equal(va.document.getElementById('final-150').innerHTML, 'Real exam (140 scored + 10 unscored &middot; 150 min)');
@@ -420,5 +424,28 @@ va.generateQuestions();
 const vaPractice = va.document.getElementById('questions-container').innerHTML;
 assert.equal((vaPractice.match(/class="qcard"/g) || []).length, 1);
 assert.match(vaPractice, /id="prac-next"[^>]*disabled/);
+
+function assertReviewEscapes(page) {
+  page.__hist().push({
+    topic: 'Topic <x>',
+    question: 'Sample <b>question</b>',
+    options: { A: '<i>a</i>', B: 'b', C: 'c', D: 'd' },
+    correct: 'A',
+    userAnswer: 'B',
+    isCorrect: false,
+    explanation: '<script>no</script>'
+  });
+  page.renderReview();
+  const review = page.document.getElementById('review-container').innerHTML;
+  assert.match(review, /&lt;b&gt;question&lt;\/b&gt;/);
+  assert.match(review, /&lt;i&gt;a&lt;\/i&gt;/);
+  assert.match(review, /&lt;script&gt;no&lt;\/script&gt;/);
+  assert.match(review, /Topic &lt;x&gt;/);
+  assert.equal(/<b>|<script>|<i>/.test(review), false);
+}
+assertReviewEscapes(md);
+assertReviewEscapes(va);
+assert.equal(md.FINAL_FULL_SIGNAL, 140);
+assert.equal(md.__finalLen, 140);
 
 console.log('md-va-exam-check: ok', md.__bank.length, va.__bank.length);
