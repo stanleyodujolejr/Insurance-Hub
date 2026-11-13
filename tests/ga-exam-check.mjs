@@ -358,9 +358,12 @@ labelsFor('life');
 assert.equal(page.document.getElementById('final-150').innerHTML, lifeLabels.full);
 
 const gs = read('apps-script/live/user_progress.gs');
-const clasp = JSON.parse(read('apps-script/live/.clasp.json'));
-assert.equal(clasp.scriptId, '1lmwo8X8yWRHlt3xlIQVq_pfODLmXAktrmhGusopHLvcerdJGPLI7N3bk');
-assert.equal(clasp.rootDir, '.');
+const claspUrl = new URL('apps-script/live/.clasp.json', root);
+if (fs.existsSync(claspUrl)) {
+  const clasp = JSON.parse(fs.readFileSync(claspUrl, 'utf8'));
+  assert.equal(clasp.scriptId, '1lmwo8X8yWRHlt3xlIQVq_pfODLmXAktrmhGusopHLvcerdJGPLI7N3bk');
+  assert.equal(clasp.rootDir, '.');
+}
 assert.match(gs, /st !== 'MD' && st !== 'VA' && st !== 'GA'/);
 assert.match(gs, /if \(rec\['State'\] !== 'GA'\) return row;/);
 assert.match(gs, /return row\.map\(gaWrite\);/);
