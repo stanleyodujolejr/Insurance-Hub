@@ -1,6 +1,6 @@
 # Deploy the Apps Script
 
-Pushes to `main` that change `apps-script/live/` run `.github/workflows/deploy-apps-script.yml`. A change that only touches `.clasp.json` does not. The workflow installs the pinned `@google/clasp` 3.4.1 from `tools/clasp` with `npm ci`, pushes that folder to the existing Apps Script project, and, when a deployment ID is configured, updates that same web app so the study pages keep their current URL.
+Pushes to `main` that change `apps-script/live/` run `.github/workflows/deploy-apps-script.yml`. A change that only touches `.clasp.json` does not. The workflow installs the pinned `@google/clasp` 3.4.1 from `tools/clasp` with `npm ci --ignore-scripts`, pushes that folder to the existing Apps Script project, and, when a deployment ID is configured, updates that same web app so the study pages keep their current URL.
 
 You do the steps below once, on your own PC. Nothing in this list is committed. `.clasp.json` and `.clasprc.json` are gitignored.
 
@@ -84,7 +84,7 @@ You do not need a local `.clasp.json` for the GitHub Actions path. If you want t
 From the repository root, use the same locked clasp the workflow installs:
 
 ```powershell
-npm ci --prefix tools\clasp
+npm ci --ignore-scripts --prefix tools\clasp
 npx --prefix tools\clasp clasp push -f
 npx --prefix tools\clasp clasp deploy -i YOUR_DEPLOYMENT_ID
 ```

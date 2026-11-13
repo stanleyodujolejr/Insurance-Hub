@@ -62,7 +62,7 @@ jobs:
         working-directory: tools/clasp
         run: |
           set -euo pipefail
-          npm ci
+          npm ci --ignore-scripts
           echo "${GITHUB_WORKSPACE}/tools/clasp/node_modules/.bin" >> "${GITHUB_PATH}"
 
       - name: Write clasp config
