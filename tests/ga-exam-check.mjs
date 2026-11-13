@@ -5,6 +5,7 @@
 import fs from 'fs';
 import vm from 'vm';
 import assert from 'assert';
+import { spawnSync } from 'node:child_process';
 
 const root = new URL('..', import.meta.url);
 const read = (name) => fs.readFileSync(new URL(name, root), 'utf8');
@@ -391,3 +392,6 @@ assert.equal(cellBox.gaWrite(3), 3);
 assert.equal(cellBox.oneLine('=X\nY'), '=X | Y');
 
 console.log('ga-exam-check: ok', page.__bank.length, 'questions');
+
+const extra = spawnSync(process.execPath, [new URL('./md-va-exam-check.mjs', import.meta.url).pathname], { stdio: 'inherit' });
+if (extra.status !== 0) process.exit(extra.status || 1);
