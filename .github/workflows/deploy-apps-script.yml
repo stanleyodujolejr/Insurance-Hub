@@ -9,12 +9,13 @@ on:
     branches:
       - main
     paths:
-      - apps-script/live/**
-      - .github/workflows/deploy-apps-script.yml
+      - "apps-script/live/**"
+      - "!apps-script/live/.clasp.json"
   workflow_dispatch:
 
 permissions:
   contents: read
+  deployments: write
 
 defaults:
   run:
@@ -26,11 +27,16 @@ concurrency:
 
 jobs:
   deploy:
+    # Manual runs use the workflow file on the selected branch. This condition
+    # skips every ref except main. The production environment is limited to
+    # main and has no required reviewers, so a push to main still deploys.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: production
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Require Apps Script credentials
         env:
@@ -39,21 +45,25 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${CLASPRC_JSON}" ]; then
-            echo "::error title=Missing CLASPRC_JSON::Repository secret CLASPRC_JSON is not set. On your PC run npx @google/clasp@3.4.1 login, then paste the contents of %USERPROFILE%\\.clasprc.json into that repository secret. See DEPLOY.md."
+            echo "::error title=Missing CLASPRC_JSON::Production environment secret CLASPRC_JSON is not set. On your PC run npx @google/clasp@3.4.1 login, then paste the contents of %USERPROFILE%\\.clasprc.json into that environment secret. See DEPLOY.md."
             exit 1
           fi
           if [ -z "${APPS_SCRIPT_ID}" ]; then
-            echo "::error title=Missing APPS_SCRIPT_ID::Repository secret APPS_SCRIPT_ID is not set. In the Apps Script editor open Project Settings and copy Script ID into that repository secret. See DEPLOY.md."
+            echo "::error title=Missing APPS_SCRIPT_ID::Production environment secret APPS_SCRIPT_ID is not set. In the Apps Script editor open Project Settings and copy Script ID into that environment secret. See DEPLOY.md."
             exit 1
           fi
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
 
       - name: Install clasp
-        run: npm install -g @google/clasp@3.4.1
+        working-directory: tools/clasp
+        run: |
+          set -euo pipefail
+          npm ci
+          echo "${GITHUB_WORKSPACE}/tools/clasp/node_modules/.bin" >> "${GITHUB_PATH}"
 
       - name: Write clasp config
         env:
@@ -77,15 +87,15 @@ jobs:
           if not raw.strip():
               fail(
                   "Missing CLASPRC_JSON",
-                  "Repository secret CLASPRC_JSON is empty. On your PC run "
+                  "Production environment secret CLASPRC_JSON is empty. On your PC run "
                   "npx @google/clasp@3.4.1 login, then paste the contents of "
-                  "%USERPROFILE%\\.clasprc.json into that repository secret. See DEPLOY.md.",
+                  "%USERPROFILE%\\.clasprc.json into that environment secret. See DEPLOY.md.",
               )
           if not script_id:
               fail(
                   "Missing APPS_SCRIPT_ID",
-                  "Repository secret APPS_SCRIPT_ID is empty. In the Apps Script editor "
-                  "open Project Settings and copy Script ID into that repository secret. See DEPLOY.md.",
+                  "Production environment secret APPS_SCRIPT_ID is empty. In the Apps Script editor "
+                  "open Project Settings and copy Script ID into that environment secret. See DEPLOY.md.",
               )
 
           text = raw.lstrip("\ufeff")
@@ -152,7 +162,7 @@ jobs:
           id="${DEPLOYMENT_ID#"${DEPLOYMENT_ID%%[![:space:]]*}"}"
           id="${id%"${id##*[![:space:]]}"}"
           if [ -z "${id}" ]; then
-            echo "DEPLOYMENT_ID is not set. Skipping clasp deploy. The script project was updated with clasp push. The existing web app keeps serving its current version until you add the DEPLOYMENT_ID repository secret and run this workflow again. See DEPLOY.md."
+            echo "DEPLOYMENT_ID is not set. Skipping clasp deploy. The script project was updated with clasp push. The existing web app keeps serving its current version until you add the DEPLOYMENT_ID production environment secret and run this workflow again from main. See DEPLOY.md."
             exit 0
           fi
           if [[ ! "${id}" =~ ^[A-Za-z0-9_-]+$ ]]; then
